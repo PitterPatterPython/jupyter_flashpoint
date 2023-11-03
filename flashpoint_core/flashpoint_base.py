@@ -55,7 +55,7 @@ class Flashpoint(Magics):
                     jiu.displayMD(f"**[ * ]** Loading full {self.name_str} from base")
                 full_load = f"from {self.name_str}_core.{self.name_str}_full import {self.name_str.capitalize()}\n{self.name_str}_full = {self.name_str.capitalize()}(ipy, debug={str(self.debug)})\nipy.register_magics({self.name_str}_full)\n"
                 if self.debug:
-                    jiu.displayMD(f"**[ Dbg ]** Load Code: **{full_load}**")
+                    jiu.displayMD(f"**[ Dbg ]** Load Code: `{full_load}`")
                 self.shell.ex(full_load)
                 self.shell.user_ns['jupyter_loaded_integrations'][self.name_str] = f"{self.name_str}_full"
                 self.shell.run_cell_magic(self.name_str, line, cell)
