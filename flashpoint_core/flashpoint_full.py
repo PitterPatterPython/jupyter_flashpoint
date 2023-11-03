@@ -1,21 +1,15 @@
 #!/usr/bin/python
 
-# Base imports for all integrations, only remove these at your own risk!
-import json
-import sys
-import os
-import time
 import pandas as pd
-from collections import OrderedDict
-import re
 from integration_core import Integration
-import datetime
-from IPython.core.magic import (Magics, magics_class, line_magic, cell_magic, line_cell_magic)
-from IPython.core.display import HTML
+from IPython.core.magic import (magics_class, line_cell_magic)
 from flashpoint_core._version import __desc__
 
-# Your Specific integration imports go here, make sure they are in requirements!
+
 import jupyter_integrations_utility as jiu
+from utils.flashpoint_api import FlashpointAPI
+from utils.user_input_parser import UserInputParser
+from jupyter_flashpoint.utils.api_response_parser import ResponseParser
 
 
 @magics_class
@@ -25,8 +19,6 @@ class Flashpoint(Integration):
     name_str = "flashpoint"
     instances = {} 
     custom_evars = ["flashpoint_conn_default"]
-    # These are the variables in the opts dict that allowed to be set by the user. These are specific to this custom integration and are joined
-    # with the base_allowed_set_opts from the integration base
 
     # These are the variables in the opts dict that allowed to be set by the user. These are specific to this custom integration and are joined
     # with the base_allowed_set_opts from the integration base
@@ -34,7 +26,8 @@ class Flashpoint(Integration):
 
 
     myopts = {}
-    myopts['flashpoint_conn_default'] = ["default", "Default instance to connect with"]
+    myopts["flashpoint_conn_default"] = ["default", "Default instance to connect with"]
+    myopts["flashpoint_verify_ssl"] = [False, "Toggle this to True to verify SSL connections"]
 
 
     # Class Init function - Obtain a reference to the get_ipython()
@@ -45,30 +38,48 @@ class Flashpoint(Integration):
         #Add local variables to opts dict
         for k in self.myopts.keys():
             self.opts[k] = self.myopts[k]
-
+        
+        self.API_ENDPOINTS = list(filter(lambda func: not func.startswith("_") and hasattr(getattr(FlashpointAPI, func), "__call__"), dir(FlashpointAPI)))
+        self.user_input_parser = UserInputParser()
+        self.response_parser = ResponseParser()
         self.load_env(self.custom_evars)
         self.parse_instances()
 
+    def req_username(self, instance):
+        """See integration_base.py where this function is inherited from \
+            and why it's overriden here. We're returning False to say "don't
+            prompt for a username"
+        """
+        return False
+    
     def customAuth(self, instance):
         result = -1
         inst = None
+
         if instance not in self.instances.keys():
             result = -3
             jiu.displayMD(f"**[ ! ]** Instance **{instance}** not found in instances: Connection Failed")
         else:
             inst = self.instances[instance]
+            
         if inst is not None:
-            inst['session'] = None
-            mypass = ""
+            flashpointpass = ""
+
+            if inst['options'].get('useproxy', 0) == 1:
+                myproxies = self.retProxy(instance)
+            else:
+                myproxies = None
+
             if inst['enc_pass'] is not None:
-                mypass = self.ret_dec_pass(inst['enc_pass'])
+                flashpointpass = self.ret_dec_pass(inst['enc_pass'])
                 inst['connect_pass'] = ""
+
             try:
-                inst['session'] = splclient.connect(host=inst['host'], port=inst['port'], username=inst['user'], password=mypass, autologin=self.opts['splunk_autologin'][0])
+                inst['session'] = FlashpointAPI(host=inst['host'], token=flashpointpass)
                 result = 0
-            except:
-                jiu.displayMD(f"**[ ! ]** Unable to connect to Splunk instance **{instance}** at **{inst['conn_url']}**")
-                result = -2  
+            except Exception as e:
+                jiu.displayMD(f"**[ ! ]** Unable to connect to Flashpoint instance **{instance}** at **{inst['conn_url']}**: `{e}`")
+                result = -2                
 
         return result
 
@@ -85,15 +96,44 @@ class Flashpoint(Integration):
         table_header += "| -------- | ----- |\n"
         out = curout
         qexamples = []
-        qexamples.append(["myinstance", "search term='MYTERM'", "Run a SPL (Splunk) query against myinstance"])
-        qexamples.append(["", "search term='MYTERM'", "Run a SPL (Splunk) query against the default instance"])
-        qexamples.append(["wtf", "wtf=wtf", "WTF'ing WTF F"])
+        qexamples.append(["prod", "search_image\nyour-flashpoint-query", "Perform an image search against the Flashpoint API that matches a query"])
         out += self.retQueryHelp(qexamples)
 
         return out
+    
+    def customQuery(self, query : str, instance : str):
+        # Parse the supplied user input via the cell magic using
+        # the user_input_parser utility in ../utils
+        parsed_input = self.user_input_parser.parse_input(query)
+        
+        if self.debug:
+            jiu.displayMD(f"**[ Dbg ]** Parsed Query: `{parsed_input}`")
+            jiu.displayMD(f"**[ Dbg ]** Instance: `{instance}`")
 
+        if parsed_input["error"] == True:
+            jiu.displayMD(f"**[ ! ]** {parsed_input['message']}")
+            mydf = None
+            status = parsed_input["message"]
 
+        else:
+            try:
+                # Execute the query to the Flashpoint API by sending the user's parsed input
+                response = self.instances[instance]["session"].handler(**parsed_input["input"])
+                
+                # Pass the response to the response parser, which is responsible for 
+                # transforming API responses from Flashpoint into a structure that can 
+                # move into a dataframe
+                parsed_response = self.response_parser.handler(parsed_input["input"]["command"], response.json())
 
+                mydf = pd.DataFrame(parsed_response)
+                status = "Success"
+            
+            except Exception as e:
+                jiu.displayMD(f"**[ ! ]** Error during execution: {e}")
+                mydf = None
+                status = str(e)
+
+        return mydf, status
 
     # This is the magic name.
     @line_cell_magic
