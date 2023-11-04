@@ -1,20 +1,39 @@
 import argparse
+from utils.flashpoint_api import FlashpointAPI
 
 class UserInputParser(argparse.ArgumentParser):
+    """
+    A class to parse a user's cell magic from Jupyter.
+
+    Attributes
+    ----------
+    None
+
+    Methods
+    -------
+    parse_input(input):
+        Parses the user's cell magic from Jupyter
+    """
     def __init__(self, *args, **kwargs):
-        self.valid_commands = [
-            "search_images"
-        ]
+        self.valid_commands = list(filter(lambda func : not func.startswith('_') and hasattr(getattr(FlashpointAPI,func),'__call__') , dir(FlashpointAPI)))
         self.parser = argparse.ArgumentParser(
             prog = "flashpoint",
-            usage = """\n%%%%flashpoint instance [inst]\n[command] [flags]\n[query]"""
+            usage = f"""\n%%%%flashpoint instance [inst]\n[command] [flags]\n[query]"""
         )
         self.parser.add_argument("command", type=str, choices=self.valid_commands)
         self.parser.add_argument("-l", "--limit", type=int, default=25)
         self.parser.add_argument("-d", "--days", type=int, default=7)
+        self.parser.add_argument("--images", action=argparse.BooleanOptionalAction)
 
     def parse_input(self, input: str):
-        """
+        """ Parses the user's cell magic from Jupyter
+
+            Keyword Arguments:
+            input -- the entire contents of the cell from Jupyter
+
+            Returns:
+            parsed_input -- an object containing an error status, a message,
+                and parsed command from argparse.parse()
         """
 
         # Prepare the response object to return to the calling function
