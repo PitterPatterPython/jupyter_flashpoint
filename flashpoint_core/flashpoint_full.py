@@ -98,7 +98,9 @@ class Flashpoint(Integration):
         table_header += "| -------- | ----- |\n"
         out = curout
         qexamples = []
-        qexamples.append(["prod", "search_image\nyour-flashpoint-query", "Perform an image search against the Flashpoint API that matches a query"])
+        qexamples.append(["prod", "search_media\nyour-flashpoint-query", "Perform an image search against the Flashpoint API that matches a query."])
+        qexamples.append(["prod", "get_image\nstorage_uri", "Retrieve an image from the Flashpoint API by `_source.media.storage_uri`"])
+
         out += self.retQueryHelp(qexamples)
 
         return out

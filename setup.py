@@ -10,8 +10,6 @@ if v[:2] < (3, 3):
     print(error, file=sys.stderr)
     sys.exit(1)
 
-
-
 from distutils.core import setup
 
 pjoin = os.path.join
@@ -21,10 +19,10 @@ here = os.path.abspath(os.path.dirname(__file__))
 version_ns = {}
 integration_str = "flashpoint" # This could change to hive, drill, elastic etc.
 
-with open(pjoin(here, integration_str + '_core', '_version.py')) as f:
+with open(pjoin(here, integration_str + "_core", "_version.py")) as f:
     exec(f.read(), {}, version_ns)
 
-integration_base_ver_min = '0.1.0'
+integration_base_ver_min = "0.1.0"
 
 try:
     import integration_core
@@ -37,9 +35,9 @@ if integration_core.__version__ < integration_base_ver_min:
     sys.exit(1)
 
 setup_args = dict(
-    name='jupyter_' + integration_str,
-    packages=[integration_str + '_core'],
-    version=version_ns['__version__'],
+    name="jupyter_" + integration_str,
+    packages=[integration_str + "_core", "utils"],
+    version=version_ns["__version__"],
     description="""Allows Jupyter Notebooks to interface with the Flashpoint API""",
     long_description="Allows Jupyter Notebooks to interface with the Flashpoint API",
     author="Rob D'Aveta",
@@ -47,27 +45,27 @@ setup_args = dict(
     url="https://github.com/robd518/jupyter_" + integration_str,
     license="Apache",
     platforms="Linux, Mac OS X, Windows",
-    keywords=['Interactive', 'Interpreter', 'Shell', 'Notebook', 'Jupyter', integration_str],
+    keywords=["Interactive", "Interpreter", "Shell", "Notebook", "Jupyter", integration_str],
     classifiers=[
-        'Intended Audience :: Developers',
-        'Intended Audience :: System Administrators',
-        'Intended Audience :: Science/Research',
-        'License :: Apache',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
+        "Intended Audience :: Developers",
+        "Intended Audience :: System Administrators",
+        "Intended Audience :: Science/Research",
+        "License :: Apache",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
     ],
 )
 
-if 'bdist_wheel' in sys.argv:
+if "bdist_wheel" in sys.argv:
     import setuptools
 
 # setuptools requirements
-if 'setuptools' in sys.modules:
-    setup_args['install_requires'] = install_requires = []
-    with open('requirements.txt') as f:
+if "setuptools" in sys.modules:
+    setup_args["install_requires"] = install_requires = []
+    with open("requirements.txt") as f:
         for line in f.readlines():
             req = line.strip()
-            if not req or req.startswith(('-e', '#')):
+            if not req or req.startswith(("-e", "#")):
                 continue
             install_requires.append(req)
 
@@ -75,5 +73,5 @@ if 'setuptools' in sys.modules:
 def main():
     setup(**setup_args)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
