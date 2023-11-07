@@ -149,6 +149,10 @@ class Flashpoint(Integration):
             try:
                 # Execute the query to the Flashpoint API by sending the user's parsed input
                 response = self.instances[instance]["session"]._handler(**parsed_input["input"])
+
+                if self.debug:
+                    jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response.status_code}")
+                    jiu.displayMD(f"**[ Dbg ]** Response text: {response.text}")
                 
                 # Pass the response to the response parser, which is responsible for 
                 # transforming API responses from Flashpoint into a structure that can 
