@@ -32,12 +32,9 @@ class FlashpointAPI:
     def __init__(self, host : str, token : str, proxies : dict = None, verify : bool = False):
         self.session = requests.Session()
         self.host = host
+        self.token = token
         self.session.verify = verify
         self.session.proxies = proxies
-        self.session.headers = { 
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
         self.payload_template = {
             "collapse_field": "media.sha1.keyword",
             "from": 0,
@@ -185,6 +182,11 @@ class FlashpointAPI:
         """
         
         url = f"https://{self.host}/all/search"
+
+        self.session.headers = { 
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json"
+        }
         
         query = self._escape_query(query)
 
@@ -228,8 +230,10 @@ class FlashpointAPI:
         # separate API for "UI" things. Yes, I know, and I'm sorry.
         url = "https://fp.tools/ui/v4/media/assets"
 
-        custom_headers = self.session.headers
-        custom_headers["Content-Type"] = "image/jpeg"
+        self.session.headers = { 
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "image/jpeg"
+        }
 
         payload = {
             "asset_id" : query
