@@ -29,7 +29,7 @@ class FlashpointAPI:
         Retrieve a single image from the Flashpoint API, by _source.media.storage_uri
 
     """
-    def __init__(self, host : str, token : str, proxies : dict = None, verify : bool = False):
+    def __init__(self, host : str, token : str, proxies : dict = None, verify : bool = True):
         self.session = requests.Session()
         self.host = host
         self.token = token
