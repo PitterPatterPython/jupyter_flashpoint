@@ -77,7 +77,7 @@ class Flashpoint(Integration):
                 inst['connect_pass'] = ""
 
             try:
-                inst['session'] = FlashpointAPI(host=inst['host'], token=flashpointpass)
+                inst['session'] = FlashpointAPI(host=inst['host'], token=flashpointpass, proxies=myproxies)
                 result = 0
             except Exception as e:
                 jiu.displayMD(f"**[ ! ]** Unable to connect to Flashpoint instance **{instance}** at **{inst['conn_url']}**: `{e}`")
