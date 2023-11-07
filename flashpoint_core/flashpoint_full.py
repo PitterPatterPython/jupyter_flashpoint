@@ -6,13 +6,11 @@ from IPython.core.display import HTML
 from IPython.core.magic import (magics_class, line_cell_magic)
 from IPython.display import display
 from flashpoint_core._version import __desc__
-
 import jupyter_integrations_utility as jiu
 from utils.flashpoint_api import FlashpointAPI
 from utils.user_input_parser import UserInputParser
 from utils.api_response_parser import ResponseParser
 from utils.helper_functions import format_b64_image_for_dataframe
-
 
 @magics_class
 class Flashpoint(Integration):
@@ -24,12 +22,12 @@ class Flashpoint(Integration):
 
     # These are the variables in the opts dict that allowed to be set by the user. These are specific to this custom integration and are joined
     # with the base_allowed_set_opts from the integration base
-    custom_allowed_set_opts = ["flashpoint_conn_default"]
-
+    custom_allowed_set_opts = ["flashpoint_conn_default", "flashpoint_verify_ssl", "flashpoint_disable_ssl_warnings"]
 
     myopts = {}
     myopts["flashpoint_conn_default"] = ["default", "Default instance to connect with"]
     myopts["flashpoint_verify_ssl"] = [False, "Toggle this to True to verify SSL connections"]
+    myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings for SSL; this will be _very_ noisy!"]
 
 
     # Class Init function - Obtain a reference to the get_ipython()
@@ -37,7 +35,7 @@ class Flashpoint(Integration):
         super(Flashpoint, self).__init__(shell, debug=debug)
         self.debug = debug
 
-        #Add local variables to opts dict
+        # Add local variables to opts dict
         for k in self.myopts.keys():
             self.opts[k] = self.myopts[k]
         
@@ -67,17 +65,36 @@ class Flashpoint(Integration):
         if inst is not None:
             flashpointpass = ""
 
-            if inst['options'].get('useproxy', 0) == 1:
+            # Turn off SSL warnings, if the user chose to
+            if self.opts["flashpoint_disable_ssl_warnings"][0] == True:
+                import urllib3
+                urllib3.disable_warnings()
+            
+            # Proxy variables, if any
+            if inst["options"].get("useproxy", 0) == 1:
                 myproxies = self.retProxy(instance)
             else:
                 myproxies = None
 
-            if inst['enc_pass'] is not None:
-                flashpointpass = self.ret_dec_pass(inst['enc_pass'])
-                inst['connect_pass'] = ""
+            # SSL Verification
+            ssl_verify = self.opts["flashpoint_verify_ssl"][0]
+            if isinstance(ssl_verify, str) and ssl_verify.strip().lower() in ["true", "false","1","0"]:
+                if ssl_verify.strip().lower() in ["true","1"]:
+                    ssl_verify = True
+                else:
+                    ssl_verify = False
+            elif isinstance(ssl_verify, int) and ssl_verify in [0, 1]:
+                if ssl_verify == 1:
+                    ssl_verify = True
+                else:
+                    ssl_verify = False
+
+            if inst["enc_pass"] is not None:
+                flashpointpass = self.ret_dec_pass(inst["enc_pass"])
+                inst["connect_pass"] = ""
 
             try:
-                inst['session'] = FlashpointAPI(host=inst['host'], token=flashpointpass, proxies=myproxies)
+                inst["session"] = FlashpointAPI(host=inst["host"], token=flashpointpass, proxies=myproxies, verify=ssl_verify)
                 result = 0
             except Exception as e:
                 jiu.displayMD(f"**[ ! ]** Unable to connect to Flashpoint instance **{instance}** at **{inst['conn_url']}**: `{e}`")
