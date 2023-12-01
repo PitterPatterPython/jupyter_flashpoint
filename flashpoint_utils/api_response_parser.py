@@ -1,5 +1,5 @@
 import jsonpath_ng as jp
-from utils.helper_functions import create_b64_image_string, format_b64_image_for_dataframe
+from flashpoint_utils.helper_functions import create_b64_image_string, format_b64_image_for_dataframe
 
 class ResponseParser:
     """

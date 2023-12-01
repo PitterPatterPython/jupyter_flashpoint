@@ -7,10 +7,10 @@ from IPython.core.magic import (magics_class, line_cell_magic)
 from IPython.display import display
 from flashpoint_core._version import __desc__
 import jupyter_integrations_utility as jiu
-from utils.flashpoint_api import FlashpointAPI
-from utils.user_input_parser import UserInputParser
-from utils.api_response_parser import ResponseParser
-from utils.helper_functions import format_b64_image_for_dataframe
+from flashpoint_utils.flashpoint_api import FlashpointAPI
+from flashpoint_utils.user_input_parser import UserInputParser
+from flashpoint_utils.api_response_parser import ResponseParser
+from flashpoint_utils.helper_functions import format_b64_image_for_dataframe
 
 @magics_class
 class Flashpoint(Integration):
