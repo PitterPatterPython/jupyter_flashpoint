@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, BooleanOptionalAction
 import re
-from utils.flashpoint_api import FlashpointAPI
+from flashpoint_utils.flashpoint_api import FlashpointAPI
 
 class UserInputParser(ArgumentParser):
     """

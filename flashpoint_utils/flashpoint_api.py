@@ -1,6 +1,6 @@
 import json
 import requests
-from utils.helper_functions import create_b64_image_string
+from flashpoint_utils.helper_functions import create_b64_image_string
 
 class FlashpointAPI:
     """

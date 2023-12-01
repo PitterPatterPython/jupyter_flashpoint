@@ -36,7 +36,7 @@ if integration_core.__version__ < integration_base_ver_min:
 
 setup_args = dict(
     name="jupyter_" + integration_str,
-    packages=[integration_str + "_core", "utils"],
+    packages=[integration_str + "_core", "flashpoint_utils"],
     version=version_ns["__version__"],
     description="""Allows Jupyter Notebooks to interface with the Flashpoint API""",
     long_description="Allows Jupyter Notebooks to interface with the Flashpoint API",
