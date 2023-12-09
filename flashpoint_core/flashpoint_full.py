@@ -116,7 +116,7 @@ class Flashpoint(Integration):
         out = curout
         qexamples = []
         qexamples.append(["prod", "search_media\nyour-flashpoint-query", "Perform an image search against the Flashpoint API that matches a query."])
-        qexamples.append(["prod", "get_iiiiiiiimage\nstorage_uri", "Retrieve an image from the Flashpoint API by `_source.media.storage_uri`"])
+        qexamples.append(["prod", "get_image\nstorage_uri", "Retrieve an image from the Flashpoint API by `_source.media.storage_uri`"])
 
         out += self.retQueryHelp(qexamples)
 
