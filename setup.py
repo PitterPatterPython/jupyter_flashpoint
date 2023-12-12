@@ -22,8 +22,6 @@ integration_str = "flashpoint" # This could change to hive, drill, elastic etc.
 with open(pjoin(here, integration_str + "_core", "_version.py")) as f:
     exec(f.read(), {}, version_ns)
 
-integration_base_ver_min = "0.1.0"
-
 setup_args = dict(
     name="jupyter_" + integration_str,
     packages=[integration_str + "_core", "flashpoint_utils"],
