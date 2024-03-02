@@ -12,23 +12,25 @@ from flashpoint_utils.user_input_parser import UserInputParser
 from flashpoint_utils.api_response_parser import ResponseParser
 from flashpoint_utils.helper_functions import format_b64_image_for_dataframe
 
+
 @magics_class
 class Flashpoint(Integration):
     # Static Variables
     # The name of the integration
     name_str = "flashpoint"
-    instances = {} 
+    instances = {}
     custom_evars = ["flashpoint_conn_default"]
 
-    # These are the variables in the opts dict that allowed to be set by the user. These are specific to this custom integration and are joined
+    # These are the variables in the opts dict that allowed to be set by the user.
+    # These are specific to this custom integration and are joined
     # with the base_allowed_set_opts from the integration base
     custom_allowed_set_opts = ["flashpoint_conn_default", "flashpoint_verify_ssl", "flashpoint_disable_ssl_warnings"]
 
     myopts = {}
     myopts["flashpoint_conn_default"] = ["default", "Default instance to connect with"]
     myopts["flashpoint_verify_ssl"] = [False, "Toggle this to True to verify SSL connections"]
-    myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings for SSL; this will be _very_ noisy!"]
-
+    myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings \
+        for SSL; this will be _very_ noisy!"]
 
     # Class Init function - Obtain a reference to the get_ipython()
     def __init__(self, shell, debug=False, *args, **kwargs):
@@ -38,7 +40,7 @@ class Flashpoint(Integration):
         # Add local variables to opts dict
         for k in self.myopts.keys():
             self.opts[k] = self.myopts[k]
-        
+
         self.API_ENDPOINTS = list(filter(lambda func: not func.startswith("_") and hasattr(getattr(FlashpointAPI, func), "__call__"), dir(FlashpointAPI)))
         self.user_input_parser = UserInputParser()
         self.response_parser = ResponseParser()
@@ -51,7 +53,7 @@ class Flashpoint(Integration):
             prompt for a username"
         """
         return False
-    
+
     def customAuth(self, instance):
         result = -1
         inst = None
@@ -61,15 +63,15 @@ class Flashpoint(Integration):
             jiu.displayMD(f"**[ ! ]** Instance **{instance}** not found in instances: Connection Failed")
         else:
             inst = self.instances[instance]
-            
+
         if inst is not None:
             flashpointpass = ""
 
             # Turn off SSL warnings, if the user chose to
-            if self.opts["flashpoint_disable_ssl_warnings"][0] == True:
+            if self.opts["flashpoint_disable_ssl_warnings"][0] is True:
                 import urllib3
                 urllib3.disable_warnings()
-            
+
             # Proxy variables, if any
             if inst["options"].get("useproxy", 0) == 1:
                 myproxies = self.retProxy(instance)
@@ -78,8 +80,8 @@ class Flashpoint(Integration):
 
             # SSL Verification
             ssl_verify = self.opts["flashpoint_verify_ssl"][0]
-            if isinstance(ssl_verify, str) and ssl_verify.strip().lower() in ["true", "false","1","0"]:
-                if ssl_verify.strip().lower() in ["true","1"]:
+            if isinstance(ssl_verify, str) and ssl_verify.strip().lower() in ["true", "false", "1", "0"]:
+                if ssl_verify.strip().lower() in ["true", "1"]:
                     ssl_verify = True
                 else:
                     ssl_verify = False
@@ -94,17 +96,18 @@ class Flashpoint(Integration):
                 inst["connect_pass"] = ""
 
             try:
-                inst["session"] = FlashpointAPI(host=inst["host"], token=flashpointpass, proxies=myproxies, verify=ssl_verify)
+                inst["session"] = FlashpointAPI(host=inst["host"], token=flashpointpass,
+                                                proxies=myproxies, verify=ssl_verify)
                 result = 0
             except Exception as e:
-                jiu.displayMD(f"**[ ! ]** Unable to connect to Flashpoint instance **{instance}** at **{inst['conn_url']}**: `{e}`")
-                result = -2                
+                jiu.displayMD(f"**[ ! ]** Unable to connect to Flashpoint instance **{instance}** at \
+                    **{inst['conn_url']}**: `{e}`")
+                result = -2
 
         return result
 
     def retCustomDesc(self):
         return __desc__
-
 
     def customHelp(self, curout):
         n = self.name_str
@@ -121,10 +124,10 @@ class Flashpoint(Integration):
         out += self.retQueryHelp(qexamples)
 
         return out
-    
-    def customQuery(self, query : str, instance : str):
+
+    def customQuery(self, query: str, instance: str):
         """ Execute a custom cell magic against the Flashpoint API.
-            
+
             START HERE -- General flow of this function:
             1.  We need to parse the user's cell magic via ../utils/user_input_parser. We
                 construct an object there that has metadata. We use that object to drive
@@ -132,14 +135,14 @@ class Flashpoint(Integration):
             2.  We'll display errors if there were any obvious ones during parsing.
             3.  Using the parsed input's "input" object, we'll send those to the Flashpoint
                 API's _handler function via ../utils/flashpoint_api. The _handler function
-                plays traffic cop for every API call. 
+                plays traffic cop for every API call.
             4.  I follow this simple idiom: the API is there to retrieve data, not format it.
                 That's why I delegate parsing the API response to ../utils/api_response_parser.
                 Just like the API, we pass the response to the _handler function of our response
                 parser, and it takes care of the rest. It's basically magic.
             5.  We choose how to handle the parsed data based on the type of data we're
                 handling. That's what those if/elif/else statements are for.
-            
+
             Keyword Arguments:
             query -- this is what the user types in the cell
             instance -- this is the instance/connection we'll run the query against
@@ -148,16 +151,16 @@ class Flashpoint(Integration):
             dataframe -- a pandas dataframe, or None
             status -- sent back to jupyter_integration_base
         """
-        
+
         # Parse the supplied user input via the cell magic using
         # the user_input_parser utility in ../utils
         parsed_input = self.user_input_parser.parse_input(query)
-        
+
         if self.debug:
             jiu.displayMD(f"**[ Dbg ]** Parsed Query: `{parsed_input}`")
             jiu.displayMD(f"**[ Dbg ]** Instance: `{instance}`")
 
-        if parsed_input["error"] == True:
+        if parsed_input["error"] is True:
             jiu.displayMD(f"**[ ! ]** {parsed_input['message']}")
             dataframe = None
             status = f"Failure: {parsed_input['message']}"
@@ -170,9 +173,9 @@ class Flashpoint(Integration):
                 if self.debug:
                     jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response.status_code}")
                     jiu.displayMD(f"**[ Dbg ]** Response text: {response.text}")
-                
-                # Pass the response to the response parser, which is responsible for 
-                # transforming API responses from Flashpoint into a structure that can 
+
+                # Pass the response to the response parser, which is responsible for
+                # transforming API responses from Flashpoint into a structure that can
                 # move into a dataframe
                 parsed_response = self.response_parser._handler(parsed_input["input"]["command"], response)
 
@@ -183,13 +186,14 @@ class Flashpoint(Integration):
 
                 elif (parsed_input["input"]["command"] == "search_media") and (parsed_input["input"]["images"]):
                     dataframe = pd.DataFrame(parsed_response)
-                    display(HTML(dataframe.to_html(formatters={"image_content": format_b64_image_for_dataframe}, escape=False)))
+                    display(HTML(dataframe.to_html(formatters={"image_content": format_b64_image_for_dataframe},
+                                                   escape=False)))
                     status = "Success"
-                
+
                 else:
                     dataframe = pd.DataFrame(parsed_response)
                     status = "Success"
-            
+
             except Exception as e:
                 jiu.displayMD(f"**[ ! ]** Error during execution: {e}")
                 dataframe = None
@@ -206,10 +210,11 @@ class Flashpoint(Integration):
             if self.debug:
                 jiu.displayMD(f"**[ Dbg ]** line: {line}")
                 jiu.displayMD(f"**[ Dbg ]** cell: {cell}")
-            if not line_handled: # We based on this we can do custom things for integrations. 
+            if not line_handled:  # We based on this we can do custom things for integrations.
                 if line.lower() == "testintwin":
                     jiu.displayMD("You've found the custom testint winning line magic!")
                 else:
-                    jiu.displayMD(f"I'm sorry, I don't know what you want to do with your line magic, try just %{self.name_str} for help options")
-        else: # This is run is the cell is not none, thus it's a cell to process  - For us, that means a query
+                    jiu.displayMD(f"I'm sorry, I don't know what you want to do with your line magic, \
+                        try just %{self.name_str} for help options")
+        else:  # This is run is the cell is not none, thus it's a cell to process  - For us, that means a query
             self.handleCell(cell, line)

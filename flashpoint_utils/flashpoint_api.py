@@ -2,6 +2,7 @@ import json
 import requests
 from flashpoint_utils.helper_functions import create_b64_image_string
 
+
 class FlashpointAPI:
     """
     A class to perform API requests to the Flashpoint API.
@@ -17,7 +18,7 @@ class FlashpointAPI:
     -------
     _escape_query(query):
         A general purpose function to handle certain problematic characters
-    
+
     _handler(command, **kwargs):
         Brokers API calls on behalf of the calling function
 
@@ -29,7 +30,7 @@ class FlashpointAPI:
         Retrieve a single image from the Flashpoint API, by _source.media.storage_uri
 
     """
-    def __init__(self, host : str, token : str, proxies : dict = None, verify : bool = True):
+    def __init__(self, host: str, token: str, proxies: dict = None, verify: bool = True):
         self.session = requests.Session()
         self.host = host
         self.token = token
@@ -95,13 +96,13 @@ class FlashpointAPI:
                 "geolocation",
                 "media.caption",
                 "media.file_name",
-                "media.md5",
                 "media.fpid",
                 "media.media_type",
                 "media.mime_type",
                 "media.phash",
                 "media.sha1",
                 "media.size",
+                "media_v2",
                 "media.storage_uri",
                 "enrichments.card-numbers.card-numbers.bin",
                 "enrichments.v1.ip_addresses.ip_address",
@@ -119,20 +120,21 @@ class FlashpointAPI:
             ],
             "highlight": False,
             "fields": [
-            "enrichments",
-            "body.text/html+sanitized",
-            "body.text/plain",
-            "user.names.handle",
-            "site_actor.names.handle",
-            "site_actor.names.aliases",
-            "site_actor.fpid",
-            "title",
-            "container.fpid",
-            "container.title",
-            "container.container.title",
-            "site.source_uri",
-            "site.title",
-            "native_id"
+                "enrichments",
+                "body.text/html+sanitized",
+                "body.text/plain",
+                "user.names.handle",
+                "site_actor.names.handle",
+                "site_actor.names.aliases",
+                "site_actor.fpid",
+                "title",
+                "container.fpid",
+                "container.title",
+                "container.container.title",
+                "site.source_uri",
+                "site.title",
+                "native_id",
+                "media_v2"
             ],
             "sort": [
                 "sort_date:desc"
@@ -151,7 +153,7 @@ class FlashpointAPI:
         query = query.replace('"', r'\"')
 
         return query
-    
+
     def _handler(self, command: str, **kwargs):
         """ Brokers API calls on behalf of the calling function
 
@@ -163,8 +165,8 @@ class FlashpointAPI:
             Returns:
             passes through a response object from one of the API calls executed
         """
-        return getattr(self,command)(**kwargs)
-    
+        return getattr(self, command)(**kwargs)
+
     def search_media(self, query, limit, days, images):
         """ Search Flashpoint for posts that contain media. Perform a subsequent query
             to retrieve the actual image, and add that to the data before returning it
@@ -180,64 +182,65 @@ class FlashpointAPI:
             Returns:
             response -- a requests.Response object
         """
-        
+
         url = f"https://{self.host}/all/search"
 
-        self.session.headers = { 
+        self.session.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
-        
+
         query = self._escape_query(query)
 
         payload = {
             "size": limit,
-            "query": fr"+({query}) +sort_date:[now-{days}d TO now] +basetypes:((chat AND message)) +_exists_:media.storage_uri +_exists_:media.image_enrichment.enrichments.v1.image-analysis"
+            "query": (fr"+({query}) +sort_date:[now-{days}d TO now] +basetypes:((chat AND message))"
+                      "+_exists_:media.storage_uri +_exists_:media.image_enrichment.enrichments.v1.image-analysis")
         }
-        
+
         payload = {**self.payload_template, **payload}
-        
+
         response = self.session.post(url, data=json.dumps(payload))
 
         if images:
             # update the response object with response.content for each image
             json_copy = response.json()
-            
+
             for idx, hit in enumerate(json_copy["hits"]["hits"]):
-                image_download_response = self.get_image(json_copy["hits"]["hits"][idx]["_source"]["media"]["storage_uri"])
+                image_download_response = self.get_image(
+                    json_copy["hits"]["hits"][idx]["_source"]["media"]["storage_uri"])
                 image_content = create_b64_image_string(image_download_response.content)
                 json_copy["hits"]["hits"][idx].update({"image_content": image_content})
 
             response._content = json.dumps(json_copy).encode()
-            
+
             return response
 
         else:
             return response
 
     def get_image(self, query: str, **kwargs):
-        """ Retrieve a single image from the Flashpoint API, 
+        """ Retrieve a single image from the Flashpoint API,
             by _source.media.storage_uri.
 
             Keyword arguments:
-            query -- the item to retrieve, this will be the 
+            query -- the item to retrieve, this will be the
                 _source.media.storage_uri value from an item.
 
             Returns:
             response -- a requests.Response object
         """
-        # We have to manually set this because Flashpoint has a 
+        # We have to manually set this because Flashpoint has a
         # separate API for "UI" things. Yes, I know, and I'm sorry.
         url = "https://fp.tools/ui/v4/media/assets"
 
-        self.session.headers = { 
+        self.session.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "image/jpeg"
         }
 
         payload = {
-            "asset_id" : query
+            "asset_id": query
         }
 
         return self.session.get(url, params=payload)
-        
