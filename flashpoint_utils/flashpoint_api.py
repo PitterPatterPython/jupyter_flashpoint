@@ -201,7 +201,7 @@ class FlashpointAPI:
                     for search term {query}")
                 break
 
-    def search_media(self, query, limit, days, images):
+    def search_media(self, query, limit, date_start, date_end, images):
         """ Search Flashpoint for posts that contain media. Perform a subsequent query
             to retrieve the actual image, and add that to the data before returning it
             if the user asks for them.
@@ -209,7 +209,8 @@ class FlashpointAPI:
             Keyword arguments:
             query -- (should be) the native Flashpoint query syntax
             limit -- the number of items to return
-            days -- how many days to look back
+            date_start -- the earliest date to look for results
+            date_end -- the latest date to look for results
             images -- a boolean to represent whether or not to perform a
                 subsequent call to retrieve individual images.
 
@@ -228,7 +229,7 @@ class FlashpointAPI:
 
         payload = {
             "size": limit,
-            "query": (fr"+({query}) +sort_date:[now-{days}d TO now] +basetypes:((chat AND message))"
+            "query": (fr"+({query}) +sort_date:[{date_start} TO {date_end}] +basetypes:((chat AND message))"
                       "+_exists_:media.storage_uri +_exists_:media.image_enrichment.enrichments.v1.image-analysis")
         }
 

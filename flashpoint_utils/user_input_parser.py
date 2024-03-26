@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, BooleanOptionalAction
 import re
 from flashpoint_utils.flashpoint_api import FlashpointAPI
+from flashpoint_utils.helper_functions import valid_date_format
 
 
 class UserInputParser(ArgumentParser):
@@ -31,8 +32,11 @@ class UserInputParser(ArgumentParser):
             and videos that match your query")
         self.parser_search_media.add_argument("-l", "--limit", type=int, default=25, required=False, help="limit the \
             number of results returned to this number")
-        self.parser_search_media.add_argument("-d", "--days", type=int, default=7, required=False, help="how far back \
-            to look for results in number of days")
+        self.parser_search_media.add_argument("-s", "--date_start", type=valid_date_format, required=True, help="the \
+            earliest date to look for results")
+        self.parser_search_media.add_argument("-e", "--date_end", type=valid_date_format, default="now",
+                                              required=False, help="the latest date to look for results; defaults to \
+                                                  'now'")
         self.parser_search_media.add_argument("--images", action=BooleanOptionalAction, required=False, help="include \
             image thumbnails in results")
 
