@@ -140,9 +140,11 @@ class Flashpoint(Integration):
                                 cell magics |\n"
                             "| %%flashpoint instance<br>command --help | Display usage syntax for a specific \
                                 command |\n"
-                            "| %%flashpoint instance<br>search_media -l 25 -d 7 --images<br>'wells fargo' | Search \
-                                Flashpoint media for the past 7 days for posts containing the exact phrase \
-                                'wells fargo', limited to 25 results, and include the images in the results |\n"
+                            "| %%flashpoint instance<br>search_media -l 25 -s 2024-01-01 -e 2024-01-31 --images \
+                                <br>'wells fargo' | Search Flashpoint media for the specified start and end dates \
+                                for posts containing the exact phrase 'wells fargo', limited to 25 results, and \
+                                include the images in the results. The date_end parameter will default to 'now' \
+                                if not specified. |\n"
                             "| %%flashpoint instance<br>get_image<br>the _source.media.storage_uri from a particular \
                                 media in your results | Retrieve an image from the Flashpoint API by the \
                                 `_source.media.storage_uri` field |\n")
@@ -155,11 +157,7 @@ class Flashpoint(Integration):
 
         line_magic_table = ("| Line Magic | Description |\n"
                             "| ---------- | ----------- |\n"
-                            "| %mongo --help | Display usage syntax help for `%mongo` line magics |\n"
-                            "| %mongo command --help | Display usage syntax for a specific command |\n"
-                            "| %mongo show_dbs -i instance | Show the databases in the instance you're connected to |\n"
-                            "| %mongo show_collections -i instance -d database | Show the collections \
-                                inside of a database |\n")
+                            "| | |\n")
 
         help_out = cell_magic_helper_text + cell_magic_table + line_magic_helper_text + line_magic_table
 
