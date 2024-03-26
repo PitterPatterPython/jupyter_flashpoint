@@ -31,6 +31,7 @@ class Flashpoint(Integration):
     myopts["flashpoint_verify_ssl"] = [False, "Toggle this to True to verify SSL connections"]
     myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings \
         for SSL; this will be _very_ noisy!"]
+    myopts["flashpoint_max_retries"] = [3, "The number of attempts to retry a request before failing."]
 
     # Class Init function - Obtain a reference to the get_ipython()
     def __init__(self, shell, debug=False, *args, **kwargs):
@@ -46,6 +47,9 @@ class Flashpoint(Integration):
         self.response_parser = ResponseParser()
         self.load_env(self.custom_evars)
         self.parse_instances()
+
+    def retCustomDesc(self):
+        return __desc__
 
     def req_username(self, instance):
         """See integration_base.py where this function is inherited from \
@@ -96,34 +100,70 @@ class Flashpoint(Integration):
                 inst["connect_pass"] = ""
 
             try:
-                inst["session"] = FlashpointAPI(host=inst["host"], token=flashpointpass,
-                                                proxies=myproxies, verify=ssl_verify)
+                inst["session"] = FlashpointAPI(host=inst["host"],
+                                                token=flashpointpass,
+                                                proxies=myproxies,
+                                                verify=ssl_verify,
+                                                max_retries=self.opts["flashpoint_max_retries"][0])
+
                 result = 0
+
             except Exception as e:
-                jiu.displayMD(f"**[ ! ]** Unable to connect to Flashpoint instance **{instance}** at \
+                jiu.display_error(f"**[ ! ]** Unable to connect to Flashpoint instance **{instance}** at \
                     **{inst['conn_url']}**: `{e}`")
                 result = -2
 
         return result
 
-    def retCustomDesc(self):
-        return __desc__
-
-    def customHelp(self, curout):
-        n = self.name_str
-        mn = self.magic_name
-        m = "%" + mn
-        mq = "%" + m
-        table_header = "| Magic | Description |\n"
-        table_header += "| -------- | ----- |\n"
-        out = curout
-        qexamples = []
-        qexamples.append(["prod", "search_media\nyour-flashpoint-query", "Perform an image search against the Flashpoint API that matches a query."])
-        qexamples.append(["prod", "get_image\nstorage_uri", "Retrieve an image from the Flashpoint API by `_source.media.storage_uri`"])
-
-        out += self.retQueryHelp(qexamples)
+    def customHelp(self, current_output):
+        out = current_output
+        out += self.retQueryHelp(None)
 
         return out
+
+    def retQueryHelp(self, q_examples=None):
+
+        magic_name = self.magic_name
+        magic = f"%{magic_name}"
+
+        cell_magic_helper_text = (f"\n## Running {magic_name} cell magics\n"
+                                  "--------------------------------\n"
+                                  f"\n#### When running {magic} cell magics, {magic} and the instance name \
+                                      will be on the 1st of your cell, and then the command to run \
+                                      will be on the 2nd line of your cell.\n"
+                                  "\n### Cell magic examples\n"
+                                  "-----------------------\n")
+
+        cell_magic_table = ("| Cell Magic | Description |\n"
+                            "| ---------- | ----------- |\n"
+                            "| %%flashpoint instance<br>--help | Display usage syntax help for `%%flashpoint` \
+                                cell magics |\n"
+                            "| %%flashpoint instance<br>command --help | Display usage syntax for a specific \
+                                command |\n"
+                            "| %%flashpoint instance<br>search_media -l 25 -d 7 --images<br>'wells fargo' | Search \
+                                Flashpoint media for the past 7 days for posts containing the exact phrase \
+                                'wells fargo', limited to 25 results, and include the images in the results |\n"
+                            "| %%flashpoint instance<br>get_image<br>the _source.media.storage_uri from a particular \
+                                media in your results | Retrieve an image from the Flashpoint API by the \
+                                `_source.media.storage_uri` field |\n")
+
+        line_magic_helper_text = (f"\n## Running {magic_name} line magics\n"
+                                  "-------------------------------\n"
+                                  f"\n#### To see a line magic's command syntax, type `%mongo --help`\n"
+                                  "\n### Line magic examples\n"
+                                  "-----------------------\n")
+
+        line_magic_table = ("| Line Magic | Description |\n"
+                            "| ---------- | ----------- |\n"
+                            "| %mongo --help | Display usage syntax help for `%mongo` line magics |\n"
+                            "| %mongo command --help | Display usage syntax for a specific command |\n"
+                            "| %mongo show_dbs -i instance | Show the databases in the instance you're connected to |\n"
+                            "| %mongo show_collections -i instance -d database | Show the collections \
+                                inside of a database |\n")
+
+        help_out = cell_magic_helper_text + cell_magic_table + line_magic_helper_text + line_magic_table
+
+        return help_out
 
     def customQuery(self, query: str, instance: str):
         """ Execute a custom cell magic against the Flashpoint API.
@@ -154,7 +194,7 @@ class Flashpoint(Integration):
 
         # Parse the supplied user input via the cell magic using
         # the user_input_parser utility in ../utils
-        parsed_input = self.user_input_parser.parse_input(query)
+        parsed_input = self.user_input_parser.parse_input(query, type="cell")
 
         if self.debug:
             jiu.displayMD(f"**[ Dbg ]** Parsed Query: `{parsed_input}`")
@@ -171,8 +211,7 @@ class Flashpoint(Integration):
                 response = self.instances[instance]["session"]._handler(**parsed_input["input"])
 
                 if self.debug:
-                    jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response.status_code}")
-                    jiu.displayMD(f"**[ Dbg ]** Response text: {response.text}")
+                    jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response[1].status_code}")
 
                 # Pass the response to the response parser, which is responsible for
                 # transforming API responses from Flashpoint into a structure that can
@@ -204,17 +243,38 @@ class Flashpoint(Integration):
     # This is the magic name.
     @line_cell_magic
     def flashpoint(self, line, cell=None):
+
         if cell is None:
             line = line.replace("\r", "")
             line_handled = self.handleLine(line)
+
             if self.debug:
                 jiu.displayMD(f"**[ Dbg ]** line: {line}")
                 jiu.displayMD(f"**[ Dbg ]** cell: {cell}")
+
             if not line_handled:  # We based on this we can do custom things for integrations.
-                if line.lower() == "testintwin":
-                    jiu.displayMD("You've found the custom testint winning line magic!")
-                else:
-                    jiu.displayMD(f"I'm sorry, I don't know what you want to do with your line magic, \
-                        try just %{self.name_str} for help options")
+                try:
+                    parsed_input = self.user_input_parser.parse_input(line, type="line")
+
+                    if self.debug:
+                        jiu.displayMD(f"**[ Dbg ]** Parsed Query: `{parsed_input}`")
+
+                    if parsed_input["error"] is True:
+                        jiu.display_error(f"{parsed_input['message']}")
+
+                    else:
+                        instance = parsed_input["input"]["instance"]
+
+                        if instance not in self.instances.keys():
+                            jiu.display_error(f"Instance **{instance}** not found in instances")
+
+                        else:
+                            response = self.instances[instance]["session"]._handler(**parsed_input["input"])
+                            parsed_response = self.response_parser._handler(response, **parsed_input["input"])
+                            jiu.displayMD(parsed_response)
+
+                except Exception as e:
+                    jiu.display_error(f"There was an error in your line magic: {e}")
+
         else:  # This is run is the cell is not none, thus it's a cell to process  - For us, that means a query
             self.handleCell(cell, line)
