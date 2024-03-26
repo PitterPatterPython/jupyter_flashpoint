@@ -1,6 +1,8 @@
 import json
-import requests
+import niquests
+import time
 from flashpoint_utils.helper_functions import create_b64_image_string
+import jupyter_integrations_utility as jiu
 
 
 class FlashpointAPI:
@@ -31,15 +33,15 @@ class FlashpointAPI:
 
     """
     def __init__(self, host: str, token: str, proxies: dict = None, verify: bool = True):
-        self.session = requests.Session()
+        self.session = niquests.Session()
         self.host = host
         self.token = token
-        self.session.verify = verify
+        self.verify = verify
         self.session.proxies = proxies
+        self.max_retries = 3
         self.payload_template = {
             "collapse_field": "media.sha1.keyword",
             "from": 0,
-            "highlight_size": 250,
             "track_total_hits": 10000,
             "traditional_query": True,
             "_source_includes": [
@@ -82,15 +84,7 @@ class FlashpointAPI:
                 "base.title",
                 "card_type",
                 "bin",
-                "nist",
-                "mitre",
                 "source_uri",
-                "Event.date",
-                "Event.uuid",
-                "Event.Attribute",
-                "Event.Tag",
-                "Event.attribute_count",
-                "Event.RelatedEvent",
                 "attack_ids",
                 "category",
                 "geolocation",
@@ -112,11 +106,7 @@ class FlashpointAPI:
                 "enrichments.v1.ethereum_addresses.ethereum_address",
                 "enrichments.v1.bitcoin_addresses.bitcoin_address",
                 "enrichments.v1.social_media.handle",
-                "enrichments.v1.social_media.site",
-                "cve.nist",
-                "cve.mitre",
-                "cve.title",
-                "enrichments.v1.vulnerability.cve.vulnerability"
+                "enrichments.v1.social_media.site"
             ],
             "highlight": False,
             "fields": [
@@ -167,6 +157,50 @@ class FlashpointAPI:
         """
         return getattr(self, command)(**kwargs)
 
+    def _fetch(self, item, progress_bar=None):
+        """Performs the web request on behalf of the underlying function
+
+        Args:
+            item (dict): a dictionary containing the url, query, payload, and headers
+                to use in the niquests request
+            progress_bar (tqdm.notebook.tqdm_notebook, optional): if the calling function is \
+                using a progress bar, we can pass that object here and update it. Defaults to None.
+
+        Returns:
+            dict: a dictionary containing the original query term, and http response object
+        """
+        method = item["method"]
+        url = item["url"]
+        query = item["query"]
+        payload = item["payload"]
+        headers = item["headers"]
+
+        retry_count = 0
+        while retry_count <= self.max_retries:
+            response = self.session.request(method,
+                                            url,
+                                            headers=headers,
+                                            json=payload if method.lower() == "post" else None,
+                                            params=payload if method.lower() == "get" else None,
+                                            verify=self.verify)
+            if response.status_code == 429:
+                retry_count += 1
+                if retry_count <= self.max_retries:
+                    delay = 3 ** retry_count
+                    time.sleep(delay)
+                else:
+                    if progress_bar:
+                        progress_bar.update(1)
+                    return query, response
+            elif response.status_code == 200:
+                if progress_bar:
+                    progress_bar.update(1)
+                return query, response
+            else:
+                jiu.display_error(f"Request failed with status code {response.status_code} \
+                    for search term {query}")
+                break
+
     def search_media(self, query, limit, days, images):
         """ Search Flashpoint for posts that contain media. Perform a subsequent query
             to retrieve the actual image, and add that to the data before returning it
@@ -180,12 +214,12 @@ class FlashpointAPI:
                 subsequent call to retrieve individual images.
 
             Returns:
-            response -- a requests.Response object
+            dict -- a dictionary containing the original query term, and http response object
         """
 
         url = f"https://{self.host}/all/search"
 
-        self.session.headers = {
+        headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
@@ -200,19 +234,28 @@ class FlashpointAPI:
 
         payload = {**self.payload_template, **payload}
 
-        response = self.session.post(url, data=json.dumps(payload))
+        item = {
+            "method": "post",
+            "url": url,
+            "query": query,
+            "payload": payload,
+            "headers": headers
+
+        }
+
+        response = self._fetch(item)
 
         if images:
             # update the response object with response.content for each image
-            json_copy = response.json()
+            json_copy = response[1].json()
 
             for idx, hit in enumerate(json_copy["hits"]["hits"]):
                 image_download_response = self.get_image(
                     json_copy["hits"]["hits"][idx]["_source"]["media"]["storage_uri"])
-                image_content = create_b64_image_string(image_download_response.content)
+                image_content = create_b64_image_string(image_download_response[1].content)
                 json_copy["hits"]["hits"][idx].update({"image_content": image_content})
 
-            response._content = json.dumps(json_copy).encode()
+            response[1]._content = json.dumps(json_copy).encode()
 
             return response
 
@@ -228,13 +271,13 @@ class FlashpointAPI:
                 _source.media.storage_uri value from an item.
 
             Returns:
-            response -- a requests.Response object
+            dict -- a dictionary containing the original query term, and http response object
         """
         # We have to manually set this because Flashpoint has a
         # separate API for "UI" things. Yes, I know, and I'm sorry.
         url = "https://fp.tools/ui/v4/media/assets"
 
-        self.session.headers = {
+        headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "image/jpeg"
         }
@@ -243,4 +286,12 @@ class FlashpointAPI:
             "asset_id": query
         }
 
-        return self.session.get(url, params=payload)
+        item = {
+            "method": "get",
+            "url": url,
+            "query": query,
+            "payload": payload,
+            "headers": headers
+        }
+
+        return self._fetch(item)

@@ -33,7 +33,8 @@ class ResponseParser:
             Keyword arguments:
             issued_command -- the command that the user executed, which
                 represents a function name below (isn't that cool?)
-            response -- the requests.Response object from the API call
+            response -- the response object from the API call, which is
+                a dict containing the original query, and response object
 
             Returns:
             Whatever is passed back to it. It's a broker. It don't care.
@@ -61,14 +62,16 @@ class ResponseParser:
             to be used in a dataframe.
 
             Keyword arguments:
-            response -- the requests.Response object from the Flashpoint API call
+            response -- the response object from the API call, which is
+                a dict containing the original query, and response object
 
             Returns:
             flattened_response -- a flattened list of dictionaries to be
                 used in a dataframe
         """
-        response = response.json()
-        hits = response["hits"]["hits"]
+        original_query = response[0]
+        response_json = response[1].json()
+        hits = response_json["hits"]["hits"]
 
         flattened_response = []
 
@@ -94,7 +97,8 @@ class ResponseParser:
         for hit in hits:
             row_to_add = {}
             for path in paths_to_extract:
-                row_to_add.update({path: self._find_value_by_path(path, hit)})
+                row_to_add.update({"query_term": original_query,
+                                   path: self._find_value_by_path(path, hit)})
             flattened_response.append(row_to_add)
 
         return flattened_response
@@ -103,10 +107,11 @@ class ResponseParser:
         """ Convert a raw image bytes object to a hot-n-ready $5 HTML-ready object
 
             Keyword arguments:
-            response -- the requests.Response object from the Flashpoint API call
+            response -- the response object from the API call, which is
+                a dict containing the original query, and response object
 
             Returns:
             An HTML-ready b64 string of the image
         """
-        b64_img_data = create_b64_image_string(response.content)
+        b64_img_data = create_b64_image_string(response[1].content)
         return format_b64_image_for_dataframe(b64_img_data)

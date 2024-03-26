@@ -209,8 +209,7 @@ class Flashpoint(Integration):
                 response = self.instances[instance]["session"]._handler(**parsed_input["input"])
 
                 if self.debug:
-                    jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response.status_code}")
-                    jiu.displayMD(f"**[ Dbg ]** Response text: {response.text}")
+                    jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response[1].status_code}")
 
                 # Pass the response to the response parser, which is responsible for
                 # transforming API responses from Flashpoint into a structure that can
