@@ -31,6 +31,7 @@ class Flashpoint(Integration):
     myopts["flashpoint_verify_ssl"] = [False, "Toggle this to True to verify SSL connections"]
     myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings \
         for SSL; this will be _very_ noisy!"]
+    myopts["flashpoint_max_retries"] = [3, "The number of attempts to retry a request before failing."]
 
     # Class Init function - Obtain a reference to the get_ipython()
     def __init__(self, shell, debug=False, *args, **kwargs):
@@ -102,7 +103,8 @@ class Flashpoint(Integration):
                 inst["session"] = FlashpointAPI(host=inst["host"],
                                                 token=flashpointpass,
                                                 proxies=myproxies,
-                                                verify=ssl_verify)
+                                                verify=ssl_verify,
+                                                max_retries=self.opts["flashpoint_max_retries"][0])
 
                 result = 0
 

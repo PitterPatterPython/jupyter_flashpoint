@@ -32,13 +32,13 @@ class FlashpointAPI:
         Retrieve a single image from the Flashpoint API, by _source.media.storage_uri
 
     """
-    def __init__(self, host: str, token: str, proxies: dict = None, verify: bool = True):
+    def __init__(self, host, token, proxies=None, verify=True, max_retries=3):
         self.session = niquests.Session()
         self.host = host
         self.token = token
         self.verify = verify
         self.session.proxies = proxies
-        self.max_retries = 3
+        self.max_retries = max_retries
         self.payload_template = {
             "collapse_field": "media.sha1.keyword",
             "from": 0,
