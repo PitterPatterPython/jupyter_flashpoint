@@ -333,16 +333,16 @@ class FlashpointAPI:
         return self._fetch(item)
 
     def search_chat(self, query, limit, date_start, date_end, *args, **kwargs):
-        """_summary_
+        """Search Flashpoint for chat messages that contain one or more keywords.
 
         Args:
-            query (_type_): _description_
-            limit (_type_): _description_
-            date_start (_type_): _description_
-            date_end (_type_): _description_
+            query (list): a list of search terms to search for
+            limit (int): the number of results to return for each search term
+            date_start (str): the start date represented in YYYY-MM-DD
+            date_end (str): the end date represented in YYYY-MM-DD
 
         Returns:
-            _type_: _description_
+            tup: (search term, response object, hit count)
         """
 
         url = f"https://{self.host}/all/search"
