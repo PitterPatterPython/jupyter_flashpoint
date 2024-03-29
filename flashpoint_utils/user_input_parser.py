@@ -47,7 +47,7 @@ class UserInputParser(ArgumentParser):
         # Subparser for "get_image" command
         self.parser_get_image = self.cell_subparsers.add_parser("get_image", help="Get an image from the Flashpoint \
             API by the _source.media.storage_uri JSON path")
-        self.parser_get_image.add_argument("-u", "--uri", required=True, help="The value of the \
+        self.parser_get_image.add_argument("-u", "--uri", action="append", required=True, help="The value of the \
             _source.media.storage_uri field of the image to retrieve")
 
         # Subparser for "search_chat" command

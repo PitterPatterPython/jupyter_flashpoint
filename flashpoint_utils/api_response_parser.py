@@ -71,6 +71,7 @@ class ResponseParser:
             flattened_response -- a flattened list of dictionaries to be
                 used in a dataframe
         """
+
         original_query = response[0]
         response_json = response[1].json()
         hits = response_json["hits"]["hits"]
@@ -115,8 +116,13 @@ class ResponseParser:
             Returns:
             An HTML-ready b64 string of the image
         """
-        b64_img_data = create_b64_image_string(response[1].content)
-        return format_b64_image_for_dataframe(b64_img_data)
+        images_list = []
+        for img in response:
+            b64_img_data = create_b64_image_string(img[1].content)
+            formatted_image = format_b64_image_for_dataframe(b64_img_data)
+            images_list.append([img[0], formatted_image])
+
+        return images_list
 
     def search_chat(self, responses):
 

@@ -42,6 +42,7 @@ class FlashpointAPI:
         self.verify = verify
         self.session.proxies = proxies
         self.max_retries = max_retries
+        self.media_assets_url = "https://fp.tools/ui/v4/media/assets"
         self.payload_template = {
             "collapse_field": "media.sha1.keyword",
             "from": 0,
@@ -223,7 +224,7 @@ class FlashpointAPI:
         with tqdm(total=len(items),
                   unit="request",
                   desc="Processing",
-                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} Elapsed time:{elapsed} Total Results: {postfix[0]}]",
+                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} Elapsed time: {elapsed} Total Results: {postfix[0]}]",
                   postfix=[0]) as progress_bar:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = []
@@ -295,58 +296,93 @@ class FlashpointAPI:
             progress_bar.postfix[0] = response[2]
             progress_bar.update(0)
 
+        # If the user included the --images flag, update the response object
+        # with response.content for each image
         if images:
-            # update the response object with response.content for each image
+            # Make a copy of the response from above. We'll modify this copy of the data
+            # and add a column to include the image for each hit in json_copy["hits"]["hits"]
             json_copy = response[1].json()
 
+            # Create a list of payloads, and keep track of the index in json_copy["hits"]["hits"]
+            # for the item that the image belongs to
+            payloads = []
+
+            # Loop through each result in our hits list, and create a list of payloads to pass to
+            # self._concurrent_fetches where we'll grab the image content for each image
             for idx, hit in enumerate(json_copy["hits"]["hits"]):
-                image_download_response = self.get_image(
-                    json_copy["hits"]["hits"][idx]["_source"]["media"]["storage_uri"])
-                image_content = create_b64_image_string(image_download_response[1].content)
+                storage_uri = json_copy["hits"]["hits"][idx]["_source"]["media"]["storage_uri"]
+                headers = {
+                    "Authorization": f"Bearer {self.token}",
+                    "Content-Type": "image/jpeg"
+                }
+                payload = {
+                    "asset_id": storage_uri
+                }
+
+                item = {
+                    "method": "get",
+                    "url": self.media_assets_url,
+                    "query": idx,  # this is the current index in the ["hits"]["hits"]
+                    "payload": payload,
+                    "headers": headers
+                }
+
+                payloads.append(item)
+
+            image_responses = self._concurrent_fetches(payloads)
+
+            # For each image in the response, create a b64 image string of the image
+            # so that we can display it in our dataframe
+            for img_response in image_responses:
+                idx = img_response[0]
+                image_content = create_b64_image_string(img_response[1].content)
                 json_copy["hits"]["hits"][idx].update({"image_content": image_content})
 
+            # Overlay the copy of the original response with the updated
+            # content that contains the b64 image string for each image,
+            # appropriately placed in the correct index/row of the ["hits"]["hits"]
             response[1]._content = json.dumps(json_copy).encode()
 
-            return response
+        return response
 
-        else:
-            return response
-
-    def get_image(self, uri: str, **kwargs):
-        """ Retrieve a single image from the Flashpoint API,
-            by _source.media.storage_uri.
+    def get_image(self, uri, **kwargs):
+        """ Retrieve one or more images from the Flashpoint API by _source.media.storage_uri.
 
             Keyword arguments:
-            uri -- the item to retrieve, this will be the
+            uri (list) -- the items to retrieve, this will be the
                 _source.media.storage_uri value from an item.
 
             Returns:
-            dict -- a dictionary containing the original query term, and http response object
+            (tup) -- a dictionary containing the original query term, and http response object
         """
         # We have to manually set this because Flashpoint has a
         # separate API for "UI" things. Yes, I know, and I'm sorry.
-        url = "https://fp.tools/ui/v4/media/assets"
+        url = self.media_assets_url
 
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "image/jpeg"
         }
 
-        payload = {
-            "asset_id": uri
-        }
+        payloads = []
+        for u in uri:
+            payload = {
+                "asset_id": uri
+            }
 
-        item = {
-            "method": "get",
-            "url": url,
-            "query": uri,
-            "payload": payload,
-            "headers": headers
-        }
+            item = {
+                "method": "get",
+                "url": url,
+                "query": uri,
+                "payload": payload,
+                "headers": headers
+            }
 
-        response = self._fetch(item)
+            payloads.append(item)
 
-        return response
+        responses = self._concurrent_fetches(payloads)
+
+        return responses
 
     def search_chat(self, query, limit, date_start, date_end, *args, **kwargs):
         """Search Flashpoint for chat messages that contain one or more keywords.
