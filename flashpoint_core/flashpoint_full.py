@@ -143,30 +143,32 @@ class Flashpoint(Integration):
 
         cell_magic_table = ("| Cell Magic | Description |\n"
                             "| ---------- | ----------- |\n"
-                            "| %%flashpoint instance<br>--help | Display usage syntax help for `%%flashpoint` \
+                            "| %%flashpoint prod<br>--help | Display usage syntax help for `%%flashpoint` \
                                 cell magics |\n"
                             "| %%flashpoint instance<br>command --help | Display usage syntax for a specific \
                                 command |\n"
                             "| %%flashpoint instance<br>search_media -l 25 -s 2024-01-01 -e 2024-01-31 --images \
-                                <br>'wells fargo' | Search Flashpoint media for the specified start and end dates \
-                                for posts containing the exact phrase 'wells fargo', limited to 25 results, and \
-                                include the images in the results. The date_end parameter will default to 'now' \
-                                if not specified. |\n"
-                            "| %%flashpoint instance<br>get_image<br>the _source.media.storage_uri from a particular \
-                                media in your results | Retrieve an image from the Flashpoint API by the \
-                                `_source.media.storage_uri` field |\n")
+                                -q \"wells fargo\" | Search Flashpoint media for the specified start and end \
+                                dates for posts containing the exact phrase \"wells fargo\", limited to 25 results, \
+                                and include the images in the results. The date_end parameter will default to \
+                                'now' if not specified. If you'd like to do some more complex searching, \
+                                like \|\"wells fargo\" \|checking, just make sure to wrap single quotes around it, \
+                                like so:<br>`'\|\"wells fargo\" \|checking'` |\n"
+                            "| %%flashpoint instance<br>get_image -u _source.media.storage_uri | Retrieve an image \
+                                from the Flashpoint API by the `_source.media.storage_uri` field of a result. |\n"
+                            "| %%flashpoint instance<br>search_chat -l 5 -s 2024-01-01 -e 2024-01-31 -q \
+                                \"search term\" | Search Flashpoint chat messages for the specified start and end \
+                                dates for posts containing the exact phrase \"search term\", limited to 5 results. If \
+                                you'd like to do some more complex searching, like \|\"wells fargo\" \|checking, just \
+                                make sure to wrap single quotes around it:<br>`'\|\"wells fargo\" \|checking'` |\n"
+                            "| %%flashpoint instance<br>search_chat -l 10 -s 2024-01-01 -u list_of_search_terms | \
+                                Search Flashpoint chat messages starting from 2024-01-01 until now for posts \
+                                containing keywords from an existing list in Jupyter. Simply replace \
+                                `list_of_search_terms` with the name of the list containing your search terms<br>\
+                                **NOTE** If the list contains multiple search terms, this will run asynchronously \
+                                and concurrently, so like really fast. |\n")
 
-        line_magic_helper_text = (f"\n## Running {magic_name} line magics\n"
-                                  "-------------------------------\n"
-                                  f"\n#### To see a line magic's command syntax, type `%mongo --help`\n"
-                                  "\n### Line magic examples\n"
-                                  "-----------------------\n")
-
-        line_magic_table = ("| Line Magic | Description |\n"
-                            "| ---------- | ----------- |\n"
-                            "| | |\n")
-
-        help_out = cell_magic_helper_text + cell_magic_table + line_magic_helper_text + line_magic_table
+        help_out = cell_magic_helper_text + cell_magic_table
 
         return help_out
 
