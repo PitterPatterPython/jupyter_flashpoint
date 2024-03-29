@@ -223,7 +223,8 @@ class Flashpoint(Integration):
                 parsed_response = self.response_parser._handler(parsed_input["input"]["command"], response)
 
                 if parsed_input["input"]["command"] == "get_image":
-                    display(HTML(parsed_response))
+                    for img in parsed_response:
+                        display(HTML(img[1]))
                     dataframe = None
                     status = "Success - No Results"
 
@@ -238,6 +239,7 @@ class Flashpoint(Integration):
                     status = "Success"
 
             except Exception as e:
+                raise
                 jiu.display_error(f"**[ ! ]** Error during execution: {e}")
                 dataframe = None
                 status = f"Failure - {e}"
