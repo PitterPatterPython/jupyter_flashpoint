@@ -1,6 +1,8 @@
+import concurrent.futures
 import json
 import niquests
 import time
+from tqdm.notebook import tqdm
 from flashpoint_utils.helper_functions import create_b64_image_string
 import jupyter_integrations_utility as jiu
 
@@ -32,8 +34,9 @@ class FlashpointAPI:
         Retrieve a single image from the Flashpoint API, by _source.media.storage_uri
 
     """
-    def __init__(self, host, token, proxies=None, verify=True, max_retries=3):
+    def __init__(self, host, token, proxies=None, verify=True, max_retries=3, max_workers=10):
         self.session = niquests.Session()
+        self.max_workers = max_workers
         self.host = host
         self.token = token
         self.verify = verify
@@ -191,17 +194,52 @@ class FlashpointAPI:
                 else:
                     if progress_bar:
                         progress_bar.update(1)
-                    return query, response
+                    return query, response, 0
             elif response.status_code == 200:
+                hits_count = len(response.json()["hits"]["hits"])
                 if progress_bar:
                     progress_bar.update(1)
-                return query, response
+                return query, response, hits_count
             else:
                 jiu.display_error(f"Request failed with status code {response.status_code} \
                     for search term {query}")
                 break
 
-    def search_media(self, query, limit, date_start, date_end, images):
+    def _concurrent_fetches(self, items):
+        """Asynchronously perform multiple HTTP requests
+
+        Args:
+            items (list): A list of dictionaries that include the method, url, query term \
+                payload, and headers to use in each concurrent request
+
+        Returns:
+            list: a list of tuples representing the original query term and response object
+                for each request
+        """
+        with tqdm(total=len(items),
+                  unit="request",
+                  desc="Processing",
+                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} Elapsed time:{elapsed} Total Results: {postfix[0]}]",
+                  postfix=[0]) as progress_bar:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = []
+                for item in items:
+                    future = executor.submit(self._fetch, item, progress_bar)
+                    futures.append(future)
+
+                results = []
+                total_hits = 0
+                for future in concurrent.futures.as_completed(futures):
+                    query, result, hits_count = future.result()
+                    if result.status_code == 200:
+                        total_hits += hits_count
+                        progress_bar.postfix[0] = total_hits
+                        progress_bar.update(0)
+                    results.append((query, result, hits_count))
+                    time.sleep(0.1)
+        return results
+
+    def search_media(self, query, limit, date_start, date_end, images, *args, **kwargs):
         """ Search Flashpoint for posts that contain media. Perform a subsequent query
             to retrieve the actual image, and add that to the data before returning it
             if the user asks for them.
@@ -225,12 +263,10 @@ class FlashpointAPI:
             "Content-Type": "application/json"
         }
 
-        query = self._escape_query(query)
-
         payload = {
             "size": limit,
             "query": (fr"+({query}) +sort_date:[{date_start} TO {date_end}] +basetypes:((chat AND message))"
-                      "+_exists_:media.storage_uri +_exists_:media.image_enrichment.enrichments.v1.image-analysis")
+                      " +_exists_:media.storage_uri +_exists_:media.image_enrichment.enrichments.v1.image-analysis")
         }
 
         payload = {**self.payload_template, **payload}
@@ -241,7 +277,6 @@ class FlashpointAPI:
             "query": query,
             "payload": payload,
             "headers": headers
-
         }
 
         response = self._fetch(item)
@@ -263,12 +298,12 @@ class FlashpointAPI:
         else:
             return response
 
-    def get_image(self, query: str, **kwargs):
+    def get_image(self, uri: str, **kwargs):
         """ Retrieve a single image from the Flashpoint API,
             by _source.media.storage_uri.
 
             Keyword arguments:
-            query -- the item to retrieve, this will be the
+            uri -- the item to retrieve, this will be the
                 _source.media.storage_uri value from an item.
 
             Returns:
@@ -284,15 +319,58 @@ class FlashpointAPI:
         }
 
         payload = {
-            "asset_id": query
+            "asset_id": uri
         }
 
         item = {
             "method": "get",
             "url": url,
-            "query": query,
+            "query": uri,
             "payload": payload,
             "headers": headers
         }
 
         return self._fetch(item)
+
+    def search_chat(self, query, limit, date_start, date_end, *args, **kwargs):
+        """_summary_
+
+        Args:
+            query (_type_): _description_
+            limit (_type_): _description_
+            date_start (_type_): _description_
+            date_end (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        url = f"https://{self.host}/all/search"
+
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json"
+        }
+
+        payloads = []
+        for q in query:
+            payload = {
+                "size": limit,
+                "query": fr"+({q}) +sort_date:[{date_start} TO {date_end}] +basetypes:((chat AND message))"
+            }
+
+            payload.update(self.payload_template)
+
+            item = {
+                "method": "post",
+                "url": url,
+                "query": q,
+                "payload": payload,
+                "headers": headers
+            }
+
+            payloads.append(item)
+
+        responses = self._concurrent_fetches(payloads)
+
+        return responses

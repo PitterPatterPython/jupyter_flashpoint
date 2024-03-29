@@ -32,6 +32,8 @@ class Flashpoint(Integration):
     myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings \
         for SSL; this will be _very_ noisy!"]
     myopts["flashpoint_max_retries"] = [3, "The number of attempts to retry a request before failing."]
+    myopts["flashpoint_max_workers"] = [10, "The number of workers to use if searching for \
+        multiple search terms at once"]
 
     # Class Init function - Obtain a reference to the get_ipython()
     def __init__(self, shell, debug=False, *args, **kwargs):
@@ -42,7 +44,11 @@ class Flashpoint(Integration):
         for k in self.myopts.keys():
             self.opts[k] = self.myopts[k]
 
-        self.API_ENDPOINTS = list(filter(lambda func: not func.startswith("_") and hasattr(getattr(FlashpointAPI, func), "__call__"), dir(FlashpointAPI)))
+        self.API_ENDPOINTS = list(
+            filter(
+                lambda func: not func.startswith("_") and
+                hasattr(getattr(FlashpointAPI, func), "__call__"), dir(FlashpointAPI)
+                ))
         self.user_input_parser = UserInputParser()
         self.response_parser = ResponseParser()
         self.load_env(self.custom_evars)
@@ -104,7 +110,8 @@ class Flashpoint(Integration):
                                                 token=flashpointpass,
                                                 proxies=myproxies,
                                                 verify=ssl_verify,
-                                                max_retries=self.opts["flashpoint_max_retries"][0])
+                                                max_retries=self.opts["flashpoint_max_retries"][0],
+                                                max_workers=self.opts["flashpoint_max_workers"][0])
 
                 result = 0
 
@@ -208,9 +215,6 @@ class Flashpoint(Integration):
                 # Execute the query to the Flashpoint API by sending the user's parsed input
                 response = self.instances[instance]["session"]._handler(**parsed_input["input"])
 
-                if self.debug:
-                    jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response[1].status_code}")
-
                 # Pass the response to the response parser, which is responsible for
                 # transforming API responses from Flashpoint into a structure that can
                 # move into a dataframe
@@ -232,7 +236,8 @@ class Flashpoint(Integration):
                     status = "Success"
 
             except Exception as e:
-                jiu.displayMD(f"**[ ! ]** Error during execution: {e}")
+                raise
+                jiu.display_error(f"**[ ! ]** Error during execution: {e}")
                 dataframe = None
                 status = f"Failure - {e}"
 
