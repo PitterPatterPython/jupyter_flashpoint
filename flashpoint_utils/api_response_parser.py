@@ -1,5 +1,6 @@
 import jsonpath_ng as jp
 from flashpoint_utils.helper_functions import create_b64_image_string, format_b64_image_for_dataframe
+import jupyter_integrations_utility as jiu
 
 
 class ResponseParser:
@@ -45,7 +46,8 @@ class ResponseParser:
     def _find_value_by_path(self, path: str, json: dict):
         """ Look up a value of a JSON object via JSONPath (jsonpath_ng)
             Note: just going to leave this here for reference, if your JSON legitimately
-                has special characters in it, like '/': https://stackoverflow.com/questions/62006612/jsonpath-ng-lexer-jsonpathlexererror-error-on-line-1-col-8-unexpected-charact
+                has special characters in it, like '/':
+                https://stackoverflow.com/questions/62006612/jsonpath-ng-lexer-jsonpathlexererror-error-on-line-1-col-8-unexpected-charact
 
             Keyword arguments:
             path -- the JSON path to find in the JSON
@@ -115,3 +117,47 @@ class ResponseParser:
         """
         b64_img_data = create_b64_image_string(response[1].content)
         return format_b64_image_for_dataframe(b64_img_data)
+
+    def search_chat(self, responses):
+
+        response_list = []
+        failed_requests = []
+
+        for response in responses:
+            if response[1].status_code == 200:
+                results = response[1].json()
+
+                # Flatten the response for dataframe purposes
+                hits = results["hits"]["hits"]
+                flattened_response = []
+                paths_to_extract = [
+                    "_source.fpid",
+                    "_source.sort_date",
+                    "_source.title",
+                    "_source.body.['text/plain']",
+                    "_source.enrichments.v1.social_media[*].handle",
+                    "_source.enrichments.v1.social_media[*].site",
+                    "_source.enrichments.v1.urls[*].domain",
+                    "_source.container.fpid",
+                    "_source.site_actor.names.aliases[*]",
+                    "_source.site_actor.native_id",
+                    "_source.site_actor.username",
+                    "_source.container.native_id"
+                ]
+
+                for hit in hits:
+                    row_to_add = {"search term": response[0]}
+                    for path in paths_to_extract:
+                        row_to_add.update({path: self._find_value_by_path(path, hit)})
+                    flattened_response.append(row_to_add)
+
+                response_list.extend(flattened_response)
+
+            else:
+                failed_requests.append(response[0])
+
+        if failed_requests:
+            jiu.display_error("The following requests failed and need to be resubmitted:")
+            jiu.displayMD(failed_requests)
+
+        return response_list

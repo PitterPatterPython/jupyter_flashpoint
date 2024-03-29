@@ -28,10 +28,12 @@ class Flashpoint(Integration):
 
     myopts = {}
     myopts["flashpoint_conn_default"] = ["default", "Default instance to connect with"]
-    myopts["flashpoint_verify_ssl"] = [False, "Toggle this to True to verify SSL connections"]
+    myopts["flashpoint_verify_ssl"] = [True, "Toggle this to True to verify SSL connections"]
     myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings \
         for SSL; this will be _very_ noisy!"]
     myopts["flashpoint_max_retries"] = [3, "The number of attempts to retry a request before failing."]
+    myopts["flashpoint_max_workers"] = [10, "The number of workers to use if searching for \
+        multiple search terms at once"]
 
     # Class Init function - Obtain a reference to the get_ipython()
     def __init__(self, shell, debug=False, *args, **kwargs):
@@ -42,7 +44,11 @@ class Flashpoint(Integration):
         for k in self.myopts.keys():
             self.opts[k] = self.myopts[k]
 
-        self.API_ENDPOINTS = list(filter(lambda func: not func.startswith("_") and hasattr(getattr(FlashpointAPI, func), "__call__"), dir(FlashpointAPI)))
+        self.API_ENDPOINTS = list(
+            filter(
+                lambda func: not func.startswith("_") and
+                hasattr(getattr(FlashpointAPI, func), "__call__"), dir(FlashpointAPI)
+                ))
         self.user_input_parser = UserInputParser()
         self.response_parser = ResponseParser()
         self.load_env(self.custom_evars)
@@ -104,7 +110,8 @@ class Flashpoint(Integration):
                                                 token=flashpointpass,
                                                 proxies=myproxies,
                                                 verify=ssl_verify,
-                                                max_retries=self.opts["flashpoint_max_retries"][0])
+                                                max_retries=self.opts["flashpoint_max_retries"][0],
+                                                max_workers=self.opts["flashpoint_max_workers"][0])
 
                 result = 0
 
@@ -136,30 +143,32 @@ class Flashpoint(Integration):
 
         cell_magic_table = ("| Cell Magic | Description |\n"
                             "| ---------- | ----------- |\n"
-                            "| %%flashpoint instance<br>--help | Display usage syntax help for `%%flashpoint` \
+                            "| %%flashpoint prod<br>--help | Display usage syntax help for `%%flashpoint` \
                                 cell magics |\n"
                             "| %%flashpoint instance<br>command --help | Display usage syntax for a specific \
                                 command |\n"
                             "| %%flashpoint instance<br>search_media -l 25 -s 2024-01-01 -e 2024-01-31 --images \
-                                <br>'wells fargo' | Search Flashpoint media for the specified start and end dates \
-                                for posts containing the exact phrase 'wells fargo', limited to 25 results, and \
-                                include the images in the results. The date_end parameter will default to 'now' \
-                                if not specified. |\n"
-                            "| %%flashpoint instance<br>get_image<br>the _source.media.storage_uri from a particular \
-                                media in your results | Retrieve an image from the Flashpoint API by the \
-                                `_source.media.storage_uri` field |\n")
+                                -q \"wells fargo\" | Search Flashpoint media for the specified start and end \
+                                dates for posts containing the exact phrase \"wells fargo\", limited to 25 results, \
+                                and include the images in the results. The date_end parameter will default to \
+                                'now' if not specified. If you'd like to do some more complex searching, \
+                                like \|\"wells fargo\" \|checking, just make sure to wrap single quotes around it, \
+                                like so:<br>`'\|\"wells fargo\" \|checking'` |\n"
+                            "| %%flashpoint instance<br>get_image -u _source.media.storage_uri | Retrieve an image \
+                                from the Flashpoint API by the `_source.media.storage_uri` field of a result. |\n"
+                            "| %%flashpoint instance<br>search_chat -l 5 -s 2024-01-01 -e 2024-01-31 -q \
+                                \"search term\" | Search Flashpoint chat messages for the specified start and end \
+                                dates for posts containing the exact phrase \"search term\", limited to 5 results. If \
+                                you'd like to do some more complex searching, like \|\"wells fargo\" \|checking, just \
+                                make sure to wrap single quotes around it:<br>`'\|\"wells fargo\" \|checking'` |\n"
+                            "| %%flashpoint instance<br>search_chat -l 10 -s 2024-01-01 -u list_of_search_terms | \
+                                Search Flashpoint chat messages starting from 2024-01-01 until now for posts \
+                                containing keywords from an existing list in Jupyter. Simply replace \
+                                `list_of_search_terms` with the name of the list containing your search terms<br>\
+                                **NOTE** If the list contains multiple search terms, this will run asynchronously \
+                                and concurrently, so like really fast. |\n")
 
-        line_magic_helper_text = (f"\n## Running {magic_name} line magics\n"
-                                  "-------------------------------\n"
-                                  f"\n#### To see a line magic's command syntax, type `%mongo --help`\n"
-                                  "\n### Line magic examples\n"
-                                  "-----------------------\n")
-
-        line_magic_table = ("| Line Magic | Description |\n"
-                            "| ---------- | ----------- |\n"
-                            "| | |\n")
-
-        help_out = cell_magic_helper_text + cell_magic_table + line_magic_helper_text + line_magic_table
+        help_out = cell_magic_helper_text + cell_magic_table
 
         return help_out
 
@@ -208,9 +217,6 @@ class Flashpoint(Integration):
                 # Execute the query to the Flashpoint API by sending the user's parsed input
                 response = self.instances[instance]["session"]._handler(**parsed_input["input"])
 
-                if self.debug:
-                    jiu.displayMD(f"**[ Dbg ]** Response Status Code: {response[1].status_code}")
-
                 # Pass the response to the response parser, which is responsible for
                 # transforming API responses from Flashpoint into a structure that can
                 # move into a dataframe
@@ -232,7 +238,7 @@ class Flashpoint(Integration):
                     status = "Success"
 
             except Exception as e:
-                jiu.displayMD(f"**[ ! ]** Error during execution: {e}")
+                jiu.display_error(f"**[ ! ]** Error during execution: {e}")
                 dataframe = None
                 status = f"Failure - {e}"
 

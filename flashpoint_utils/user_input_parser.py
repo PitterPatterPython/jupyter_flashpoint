@@ -1,7 +1,8 @@
 from argparse import ArgumentParser, BooleanOptionalAction
 import re
+import shlex
 from flashpoint_utils.flashpoint_api import FlashpointAPI
-from flashpoint_utils.helper_functions import valid_date_format
+from flashpoint_utils.helper_functions import valid_date_format, valid_list
 
 
 class UserInputParser(ArgumentParser):
@@ -18,7 +19,10 @@ class UserInputParser(ArgumentParser):
         Parses the user's cell magic from Jupyter
     """
     def __init__(self, *args, **kwargs):
-        self.valid_commands = list(filter(lambda func: not func.startswith('_') and hasattr(getattr(FlashpointAPI, func), '__call__'), dir(FlashpointAPI)))
+        self.valid_commands = list(
+            filter(lambda func: not func.startswith('_') and
+                   hasattr(getattr(FlashpointAPI, func), '__call__'), dir(FlashpointAPI)
+                   ))
 
         self.line_parser = ArgumentParser(prog=r"%flashpoint")
         self.cell_parser = ArgumentParser(prog=r"%%flashpoint")
@@ -26,7 +30,7 @@ class UserInputParser(ArgumentParser):
         self.line_subparsers = self.line_parser.add_subparsers(dest="command")
         self.cell_subparsers = self.cell_parser.add_subparsers(dest="command")
 
-        # LINE SUBPARSERS #
+        # CELL SUBPARSERS #
         # Subparser for "search_media" command
         self.parser_search_media = self.cell_subparsers.add_parser("search_media", help="Search Flashpoint for images \
             and videos that match your query")
@@ -35,14 +39,30 @@ class UserInputParser(ArgumentParser):
         self.parser_search_media.add_argument("-s", "--date_start", type=valid_date_format, required=True, help="the \
             earliest date to look for results")
         self.parser_search_media.add_argument("-e", "--date_end", type=valid_date_format, default="now",
-                                              required=False, help="the latest date to look for results; defaults to \
-                                                  'now'")
+                                              required=False, help="latest date to look for results; default is 'now'")
+        self.parser_search_media.add_argument("-q", "--query", type=str, required=True, help="your query")
         self.parser_search_media.add_argument("--images", action=BooleanOptionalAction, required=False, help="include \
             image thumbnails in results")
 
         # Subparser for "get_image" command
         self.parser_get_image = self.cell_subparsers.add_parser("get_image", help="Get an image from the Flashpoint \
             API by the _source.media.storage_uri JSON path")
+        self.parser_get_image.add_argument("-u", "--uri", required=True, help="The value of the \
+            _source.media.storage_uri field of the image to retrieve")
+
+        # Subparser for "search_chat" command
+        self.parser_search_chat = self.cell_subparsers.add_parser("search_chat", help="Search Flashpoint for chat \
+            messages that contain a keyword.")
+        self.parser_search_chat.add_argument("-l", "--limit", type=int, default=25, required=False, help="the amount \
+            of results to return. NOTE: if the --list flag is used, it will return this amount for EACH keyword.")
+        self.parser_search_chat.add_argument("-s", "--date_start", type=valid_date_format, required=True, help="the \
+            earliest date to look for results")
+        self.parser_search_chat.add_argument("-e", "--date_end", type=valid_date_format, default="now", required=False,
+                                             help="the latest date to look for results; defaults to 'now'")
+        group = self.parser_search_chat.add_mutually_exclusive_group(required=True)
+        group.add_argument("-q", "--query", type=str, action="append", dest="query", help="The query term to search")
+        group.add_argument("-u", "--list", type=valid_list, dest="query", help="The Python list of \
+            search terms to use")
 
     def display_help(self, command):
         self.parser.parse_args([command, "--help"])
@@ -74,7 +94,8 @@ class UserInputParser(ArgumentParser):
                         Try `%flashpoint --help` or `%flashpoint -h` for proper formatting"
 
                 else:
-                    parsed_user_command = self.line_parser.parse_args(input.split())
+                    parsed_user_command = self.line_parser.parse_args(shlex.split(input, posix=False))
+                    print(parsed_user_command)
                     parsed_input["input"].update(vars(parsed_user_command))
 
             except SystemExit:
@@ -89,23 +110,14 @@ class UserInputParser(ArgumentParser):
 
             try:
                 if len(split_user_input) == 1:
-                    parsed_user_command = self.cell_parser.parse_args(split_user_input[0].split())
-                    parsed_input["input"].update(vars(parsed_user_command))
-                    parsed_input["error"] = True
-                    parsed_input["message"] = "Expected to get 2 lines in your cell magic, but \
-                        got 1. Try `--help` or `-h`"
-
-                elif len(split_user_input) == 2:
-                    parsed_user_command = self.cell_parser.parse_args(split_user_input[0].split())
-                    parsed_user_query = split_user_input[1]
+                    parsed_user_command = self.cell_parser.parse_args(shlex.split(split_user_input[0], posix=False))
 
                     parsed_input["input"].update(vars(parsed_user_command))
-                    parsed_input["input"].update({"query": parsed_user_query})
 
                 else:
                     parsed_input["error"] = True
-                    parsed_input["message"] = f"Expected to get 2 lines in your cell magic, \
-                        but got {len(split_user_input)}. Try `--help` or `-h`"
+                    parsed_input["message"] = (f"Cell magic contained {len(split_user_input)} lines, but should be"
+                                               "exactly 1. Try `--help` or `-h`")
                     return parsed_input
 
                 # Display help instead if the user included --help or -h in the 1st line of their cell magic

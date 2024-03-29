@@ -1,8 +1,7 @@
-#!/usr/bin/python
-
-from IPython.core.magic import (Magics, magics_class, line_magic, cell_magic, line_cell_magic)
+from IPython.core.magic import (Magics, magics_class, line_cell_magic)
 from flashpoint_core._version import __desc__
 import jupyter_integrations_utility as jiu
+
 
 @magics_class
 class Flashpoint(Magics):
@@ -13,7 +12,6 @@ class Flashpoint(Magics):
     debug = False
     # {name_str}_base is used for first load
     # {name_str}_full is used after first load
-
 
     def __init__(self, shell, debug=False, *args, **kwargs):
         super(Flashpoint, self).__init__(shell, debug=debug)
@@ -37,7 +35,7 @@ class Flashpoint(Magics):
             # This is where add our base version
             self.shell.user_ns['jupyter_loaded_integrations'][self.name_str] = f"{self.name_str}_base"
 
-    # This returns the description 
+    # This returns the description
     def retCustomDesc(self):
         return __desc__
 
@@ -45,7 +43,7 @@ class Flashpoint(Magics):
 
     @line_cell_magic
     def flashpoint(self, line, cell=None):
-        if not self.name_str in self.shell.user_ns['jupyter_loaded_integrations']:
+        if self.name_str not in self.shell.user_ns['jupyter_loaded_integrations']:
             jiu.displayMD(f"**[ ! ]** Somehow we got here and {self.name_str} is not in loaded integrations - Unpossible")
         else:
             if self.shell.user_ns['jupyter_loaded_integrations'][self.name_str] != f"{self.name_str}_base":
@@ -59,4 +57,3 @@ class Flashpoint(Magics):
                 self.shell.ex(full_load)
                 self.shell.user_ns['jupyter_loaded_integrations'][self.name_str] = f"{self.name_str}_full"
                 self.shell.run_cell_magic(self.name_str, line, cell)
-
