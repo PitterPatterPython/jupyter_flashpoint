@@ -196,7 +196,11 @@ class FlashpointAPI:
                         progress_bar.update(1)
                     return query, response, 0
             elif response.status_code == 200:
-                hits_count = len(response.json()["hits"]["hits"])
+                if "application/json" in response.headers.get("Content-Type"):
+                    hits_count = len(response.json()["hits"]["hits"])
+                else:
+                    hits_count = 1
+
                 if progress_bar:
                     progress_bar.update(1)
                 return query, response, hits_count
@@ -279,7 +283,17 @@ class FlashpointAPI:
             "headers": headers
         }
 
-        response = self._fetch(item)
+        with tqdm(total=1,
+                  unit="request",
+                  desc="Processing",
+                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} Elapsed time:{elapsed} Total Results: {postfix[0]}]",
+                  postfix=[0]) as progress_bar:
+
+            response = self._fetch(item, progress_bar)
+
+            # Add total hits to the progress bar and update it
+            progress_bar.postfix[0] = response[2]
+            progress_bar.update(0)
 
         if images:
             # update the response object with response.content for each image
@@ -329,6 +343,18 @@ class FlashpointAPI:
             "payload": payload,
             "headers": headers
         }
+
+        with tqdm(total=1,
+                  unit="request",
+                  desc="Processing",
+                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} Elapsed time:{elapsed} Total Results: {postfix[0]}]",
+                  postfix=[0]) as progress_bar:
+
+            response = self._fetch(item, progress_bar)
+
+            # Add total hits to the progress bar and update it
+            progress_bar.postfix[0] = response[2]
+            progress_bar.update(0)
 
         return self._fetch(item)
 
