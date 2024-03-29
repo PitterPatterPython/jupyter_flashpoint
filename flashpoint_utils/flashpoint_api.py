@@ -296,13 +296,19 @@ class FlashpointAPI:
             progress_bar.postfix[0] = response[2]
             progress_bar.update(0)
 
+        # If the user included the --images flag, update the response object
+        # with response.content for each image
         if images:
-            # update the response object with response.content for each image
+            # Make a copy of the response from above. We'll modify this copy of the data
+            # and add a column to include the image for each hit in json_copy["hits"]["hits"]
             json_copy = response[1].json()
 
             # Create a list of payloads, and keep track of the index in json_copy["hits"]["hits"]
-            # where the image should be associated to
+            # for the item that the image belongs to
             payloads = []
+
+            # Loop through each result in our hits list, and create a list of payloads to pass to
+            # self._concurrent_fetches where we'll grab the image content for each image
             for idx, hit in enumerate(json_copy["hits"]["hits"]):
                 storage_uri = json_copy["hits"]["hits"][idx]["_source"]["media"]["storage_uri"]
                 headers = {
@@ -325,6 +331,8 @@ class FlashpointAPI:
 
             image_responses = self._concurrent_fetches(payloads)
 
+            # For each image in the response, create a b64 image string of the image
+            # so that we can display it in our dataframe
             for img_response in image_responses:
                 idx = img_response[0]
                 image_content = create_b64_image_string(img_response[1].content)
@@ -335,10 +343,7 @@ class FlashpointAPI:
             # appropriately placed in the correct index/row of the ["hits"]["hits"]
             response[1]._content = json.dumps(json_copy).encode()
 
-            return response
-
-        else:
-            return response
+        return response
 
     def get_image(self, uri, **kwargs):
         """ Retrieve one or more images from the Flashpoint API by _source.media.storage_uri.
