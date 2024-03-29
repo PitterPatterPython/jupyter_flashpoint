@@ -344,19 +344,9 @@ class FlashpointAPI:
             "headers": headers
         }
 
-        with tqdm(total=1,
-                  unit="request",
-                  desc="Processing",
-                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} Elapsed time:{elapsed} Total Results: {postfix[0]}]",
-                  postfix=[0]) as progress_bar:
+        response = self._fetch(item)
 
-            response = self._fetch(item, progress_bar)
-
-            # Add total hits to the progress bar and update it
-            progress_bar.postfix[0] = response[2]
-            progress_bar.update(0)
-
-        return self._fetch(item)
+        return response
 
     def search_chat(self, query, limit, date_start, date_end, *args, **kwargs):
         """Search Flashpoint for chat messages that contain one or more keywords.
