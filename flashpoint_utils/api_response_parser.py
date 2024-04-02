@@ -164,6 +164,6 @@ class ResponseParser:
 
         if failed_requests:
             jiu.display_error("The following requests failed and need to be resubmitted:")
-            jiu.displayMD(failed_requests)
+            jiu.displayMD(str(failed_requests))
 
         return response_list
