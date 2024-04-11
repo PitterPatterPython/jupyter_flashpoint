@@ -2,7 +2,7 @@ from argparse import ArgumentParser, BooleanOptionalAction
 import re
 import shlex
 from flashpoint_utils.flashpoint_api import FlashpointAPI
-from flashpoint_utils.helper_functions import valid_date_format, valid_list
+from flashpoint_utils.helper_functions import valid_date_format, valid_list, valid_query
 
 
 class UserInputParser(ArgumentParser):
@@ -40,7 +40,7 @@ class UserInputParser(ArgumentParser):
             earliest date to look for results")
         self.parser_search_media.add_argument("-e", "--date_end", type=valid_date_format, default="now",
                                               required=False, help="latest date to look for results; default is 'now'")
-        self.parser_search_media.add_argument("-q", "--query", type=str, required=True, help="your query")
+        self.parser_search_media.add_argument("-q", "--query", type=valid_query, required=True, help="your query")
         self.parser_search_media.add_argument("--images", action=BooleanOptionalAction, required=False, help="include \
             image thumbnails in results")
 

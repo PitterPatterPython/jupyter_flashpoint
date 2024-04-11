@@ -30,9 +30,12 @@ class FlashpointAPI:
         Search Flashpoint for posts that contain media. Perform a subsequent query
         to retrieve the actual image, and add that to the data before returning it
         if the user asks for them.
+
     get_image(query, **kwargs):
         Retrieve a single image from the Flashpoint API, by _source.media.storage_uri
 
+    search_chat(query, **kwargs):
+        Search Flashpoint for chat messages that contain one or more keywords.
     """
     def __init__(self, host, token, proxies=None, verify=True, max_retries=3, max_workers=10):
         self.session = niquests.Session()
