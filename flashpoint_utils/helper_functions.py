@@ -34,7 +34,7 @@ def valid_list(user_list):
         return ipy.user_ns[user_list]
 
 
-def remove_quotes(user_query):
+def valid_query(user_query):
     """If the user encapsulated their query with single quotes (they'd do this
         if they're trying to run a complex query), remove the quotes so we can
         avoid HTTP 400 errors (aka pass a valid query to the Flashpoint API)"""
