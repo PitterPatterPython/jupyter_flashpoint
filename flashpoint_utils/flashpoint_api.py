@@ -349,10 +349,10 @@ class FlashpointAPI:
         return response
 
     def get_image(self, uri, **kwargs):
-        """ Retrieve one or more images from the Flashpoint API by _source.media.storage_uri.
+        """ Retrieve an image from the Flashpoint API by _source.media.storage_uri.
 
             Keyword arguments:
-            uri (list) -- the items to retrieve, this will be the
+            uri (string) -- the image to retrieve, this will be the
                 _source.media.storage_uri value from an item.
 
             Returns:
@@ -367,25 +367,21 @@ class FlashpointAPI:
             "Content-Type": "image/jpeg"
         }
 
-        payloads = []
-        for u in uri:
-            payload = {
-                "asset_id": uri
-            }
+        payload = {
+            "asset_id": uri
+        }
 
-            item = {
-                "method": "get",
-                "url": url,
-                "query": uri,
-                "payload": payload,
-                "headers": headers
-            }
+        item = {
+            "method": "get",
+            "url": url,
+            "query": uri,
+            "payload": payload,
+            "headers": headers
+        }
 
-            payloads.append(item)
+        response = self._fetch(item)
 
-        responses = self._concurrent_fetches(payloads)
-
-        return responses
+        return response
 
     def search_chat(self, query, limit, date_start, date_end, *args, **kwargs):
         """Search Flashpoint for chat messages that contain one or more keywords.

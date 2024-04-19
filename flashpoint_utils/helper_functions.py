@@ -5,6 +5,7 @@ from IPython import get_ipython
 
 ipy = get_ipython()
 
+
 def create_b64_image_string(raw_image):
     """Convert a raw bytes image to a base64 string"""
     return base64.b64encode(raw_image).decode()

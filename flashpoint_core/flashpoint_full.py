@@ -223,10 +223,11 @@ class Flashpoint(Integration):
                 parsed_response = self.response_parser._handler(parsed_input["input"]["command"], response)
 
                 if parsed_input["input"]["command"] == "get_image":
-                    for img in parsed_response:
-                        display(HTML(img[1]))
-                    dataframe = None
-                    status = "Success - No Results"
+                    display(HTML(parsed_response[1]))
+                    dataframe = pd.DataFrame({"b64_image_string": parsed_response[0],
+                                              "image_storage_uri": parsed_response[1]},
+                                             index=[0])
+                    status = "Success"
 
                 elif (parsed_input["input"]["command"] == "search_media") and (parsed_input["input"]["images"]):
                     dataframe = pd.DataFrame(parsed_response)
@@ -239,7 +240,6 @@ class Flashpoint(Integration):
                     status = "Success"
 
             except Exception as e:
-                raise
                 jiu.display_error(f"**[ ! ]** Error during execution: {e}")
                 dataframe = None
                 status = f"Failure - {e}"
