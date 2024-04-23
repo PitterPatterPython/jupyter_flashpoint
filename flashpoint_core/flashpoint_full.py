@@ -223,7 +223,9 @@ class Flashpoint(Integration):
                 parsed_response = self.response_parser._handler(parsed_input["input"]["command"], response)
 
                 if parsed_input["input"]["command"] == "get_image":
-                    display(HTML(parsed_response[1]))
+                    # Display the image after retrieving it unless the user passed the "nodisplay" flag
+                    if parsed_input["input"]["nodisplay"] is None:  # aka the user didn't set this flag
+                        display(HTML(parsed_response[1]))
                     dataframe = pd.DataFrame({"b64_image_string": parsed_response[0],
                                               "image_storage_uri": parsed_response[1]},
                                              index=[0])
