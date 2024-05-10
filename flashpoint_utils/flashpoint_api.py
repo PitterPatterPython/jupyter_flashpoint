@@ -1,6 +1,6 @@
 import concurrent.futures
 import json
-import niquests
+import requests
 import time
 from tqdm.notebook import tqdm
 from flashpoint_utils.helper_functions import create_b64_image_string
@@ -38,7 +38,7 @@ class FlashpointAPI:
         Search Flashpoint for chat messages that contain one or more keywords.
     """
     def __init__(self, host, token, proxies=None, verify=True, max_retries=3, max_workers=10):
-        self.session = niquests.Session()
+        self.session = requests.Session()
         self.max_workers = max_workers
         self.host = host
         self.token = token
@@ -169,7 +169,7 @@ class FlashpointAPI:
 
         Args:
             item (dict): a dictionary containing the url, query, payload, and headers
-                to use in the niquests request
+                to use in the requests request
             progress_bar (tqdm.notebook.tqdm_notebook, optional): if the calling function is \
                 using a progress bar, we can pass that object here and update it. Defaults to None.
 
