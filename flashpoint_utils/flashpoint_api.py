@@ -37,7 +37,7 @@ class FlashpointAPI:
     search_chat(query, **kwargs):
         Search Flashpoint for chat messages that contain one or more keywords.
     """
-    def __init__(self, host, token, proxies=None, verify=True, max_retries=3, max_workers=10):
+    def __init__(self, host, token, proxies=None, verify=False, max_retries=3, max_workers=10):
         self.session = requests.Session()
         self.max_workers = max_workers
         self.host = host
