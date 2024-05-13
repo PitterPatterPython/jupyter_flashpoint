@@ -28,7 +28,7 @@ class Flashpoint(Integration):
 
     myopts = {}
     myopts["flashpoint_conn_default"] = ["default", "Default instance to connect with"]
-    myopts["flashpoint_verify_ssl"] = [True, "Toggle this to True to verify SSL connections"]
+    myopts["flashpoint_verify_ssl"] = [False, "Toggle this to True to verify SSL connections"]
     myopts["flashpoint_disable_ssl_warnings"] = [True, "Toggle this to False to receive warnings \
         for SSL; this will be _very_ noisy!"]
     myopts["flashpoint_max_retries"] = [3, "The number of attempts to retry a request before failing."]
